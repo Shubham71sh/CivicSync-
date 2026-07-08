@@ -1,4 +1,4 @@
-import api from "../api/axiosInstance";
+import api from "../api/axiosInstance.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Profile Service
