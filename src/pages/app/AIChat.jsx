@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, Send, Bot, User, Loader2, Sparkles } from "lucide-react";
+import { MessageSquare, Send, Bot, User, Loader2, Sparkles, Globe, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import clsx from "clsx";
 import { chatQuery } from "../../services/aiService";
@@ -11,18 +11,148 @@ const INITIAL_MESSAGE = {
   text: "Hi! I'm CivicSync AI. Ask me about any legislation, your eligibility for government schemes, or how a bill affects you personally.",
 };
 
+const LANGUAGES = [
+  { code: "en-US", name: "English" },
+  { code: "es-ES", name: "Español (Spanish)" },
+  { code: "fr-FR", name: "Français (French)" },
+  { code: "de-DE", name: "Deutsch (German)" },
+  { code: "hi-IN", name: "हिन्दी (Hindi)" },
+  { code: "zh-CN", name: "中文 (Chinese)" },
+  { code: "ar-SA", name: "العربية (Arabic)" },
+];
+
 export default function AIChat() {
   const { user } = useAuth();
   const [messages, setMessages] = useState([INITIAL_MESSAGE]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [selectedLang, setSelectedLang] = useState("en-US");
+  const [activeSpeakingId, setActiveSpeakingId] = useState(null);
+  
   const messagesEndRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   useEffect(scrollToBottom, [messages, isTyping]);
 
+  // Clean up synthesis and warm up voice cache
+  useEffect(() => {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.getVoices();
+      // Chrome requires binding to voiceschanged to fully load voices
+      const handleVoicesChanged = () => window.speechSynthesis.getVoices();
+      window.speechSynthesis.addEventListener("voiceschanged", handleVoicesChanged);
+      
+      return () => {
+        window.speechSynthesis.removeEventListener("voiceschanged", handleVoicesChanged);
+        window.speechSynthesis.cancel();
+      };
+    }
+  }, []);
+
+  const startListening = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in this browser. Please try Chrome or Edge.");
+      return;
+    }
+
+    try {
+      const rec = new SpeechRecognition();
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.lang = selectedLang;
+
+      rec.onstart = () => {
+        setIsListening(true);
+      };
+
+      rec.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setInput((prev) => (prev ? prev + " " + transcript : transcript));
+      };
+
+      rec.onerror = (e) => {
+        console.error("Speech recognition error:", e);
+        setIsListening(false);
+      };
+
+      rec.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = rec;
+      rec.start();
+    } catch (err) {
+      console.error("Failed to start speech recognition:", err);
+      setIsListening(false);
+    }
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    setIsListening(false);
+  };
+
+  const toggleListening = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  };
+
+  const handleSpeak = (msgId, text) => {
+    if (!("speechSynthesis" in window)) {
+      alert("Text-to-speech is not supported in this browser.");
+      return;
+    }
+
+    if (activeSpeakingId === msgId) {
+      window.speechSynthesis.cancel();
+      setActiveSpeakingId(null);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    
+    // Tiny delay to allow browser speech engine to clear the cancel state
+    setTimeout(() => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = selectedLang;
+      
+      const voices = window.speechSynthesis.getVoices();
+      const baseLang = selectedLang.split("-")[0];
+      const voice = voices.find(v => v.lang.toLowerCase() === selectedLang.toLowerCase()) || 
+                    voices.find(v => v.lang.toLowerCase().startsWith(baseLang.toLowerCase()));
+      if (voice) {
+        utterance.voice = voice;
+      }
+
+      utterance.onend = () => {
+        setActiveSpeakingId(null);
+      };
+
+      utterance.onerror = (e) => {
+        console.error("Speech synthesis error:", e);
+        setActiveSpeakingId(null);
+      };
+
+      setActiveSpeakingId(msgId);
+      window.speechSynthesis.speak(utterance);
+    }, 100);
+  };
+
   const handleSend = async () => {
     if (!input.trim() || isTyping) return;
+
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      setActiveSpeakingId(null);
+    }
 
     const userMsg = { id: Date.now(), type: "user", text: input };
     setMessages((prev) => [...prev, userMsg]);
@@ -31,11 +161,15 @@ export default function AIChat() {
     setIsTyping(true);
 
     try {
-      // Backend: POST /api/ai/chat
-      const { response } = await chatQuery(userInput);
-      setMessages((prev) => [...prev, { id: Date.now() + 1, type: "bot", text: response }]);
+      const { response } = await chatQuery(userInput, { lang: selectedLang });
+      const botMsgId = Date.now() + 1;
+      setMessages((prev) => [...prev, { id: botMsgId, type: "bot", text: response }]);
+      handleSpeak(botMsgId, response);
     } catch (err) {
-      setMessages((prev) => [...prev, { id: Date.now() + 1, type: "bot", text: "Sorry, I couldn't process that. Please try again." }]);
+      const errorMsgId = Date.now() + 1;
+      const errorText = "Sorry, I couldn't process that. Please try again.";
+      setMessages((prev) => [...prev, { id: errorMsgId, type: "bot", text: errorText }]);
+      handleSpeak(errorMsgId, errorText);
     } finally {
       setIsTyping(false);
     }
@@ -51,7 +185,7 @@ export default function AIChat() {
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] max-w-4xl mx-auto pb-4">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border pb-6 mb-6 flex-shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-6 mb-6 flex-shrink-0">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center">
             <MessageSquare className="w-6 h-6 text-accent" />
@@ -64,7 +198,31 @@ export default function AIChat() {
             </div>
           </div>
         </div>
-        <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#171a21] text-textSecondary border border-border">Response in ~2s</span>
+        
+        <div className="flex items-center gap-3">
+          {/* Language Selector */}
+          <div className="flex items-center gap-2 bg-[#171a21] border border-border rounded-xl px-3 py-1.5">
+            <Globe className="w-4 h-4 text-accent" />
+            <select
+              value={selectedLang}
+              onChange={(e) => {
+                setSelectedLang(e.target.value);
+                if ("speechSynthesis" in window) {
+                  window.speechSynthesis.cancel();
+                  setActiveSpeakingId(null);
+                }
+              }}
+              className="bg-transparent text-xs text-white border-none outline-none cursor-pointer font-semibold pr-2"
+            >
+              {LANGUAGES.map((lang) => (
+                <option key={lang.code} value={lang.code} className="bg-[#171a21] text-white">
+                  {lang.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <span className="text-xs font-semibold px-3 py-2 rounded-xl bg-[#171a21] text-textSecondary border border-border hidden sm:inline-block">Response in ~2s</span>
+        </div>
       </div>
 
       {/* Messages */}
@@ -82,12 +240,37 @@ export default function AIChat() {
               </div>
             )}
             <div className={clsx(
-              "max-w-[75%] rounded-2xl p-4 text-sm leading-relaxed",
+              "max-w-[75%] rounded-2xl p-4 text-sm leading-relaxed relative",
               msg.type === "user"
                 ? "bg-accent text-background rounded-tr-sm font-medium"
                 : "bg-[#171a21] border border-border text-white rounded-tl-sm"
             )}>
-              {msg.text}
+              <div>{msg.text}</div>
+              {msg.type === "bot" && (
+                <div className="mt-3 pt-2 border-t border-border/40 flex justify-end">
+                  <button
+                    onClick={() => handleSpeak(msg.id, msg.text)}
+                    className={clsx(
+                      "flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg transition-all duration-200",
+                      activeSpeakingId === msg.id 
+                        ? "bg-accent/20 text-accent border border-accent/30" 
+                        : "text-textSecondary hover:text-white hover:bg-[#202430] border border-transparent"
+                    )}
+                  >
+                    {activeSpeakingId === msg.id ? (
+                      <>
+                        <VolumeX className="w-3.5 h-3.5 animate-pulse" />
+                        <span>Stop</span>
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 className="w-3.5 h-3.5" />
+                        <span>Listen</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
             {msg.type === "user" && (
               <div className="w-8 h-8 rounded-full bg-[#2a2e3d] flex items-center justify-center flex-shrink-0 mt-1">
@@ -134,12 +317,30 @@ export default function AIChat() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder="Ask a civic question..."
-            className="w-full bg-[#171a21] border border-border rounded-2xl py-4 pl-6 pr-14 text-sm text-white focus:outline-none focus:border-accent transition-colors"
+            placeholder={isListening ? "Listening... Speak now." : "Ask a civic question..."}
+            className={clsx(
+              "w-full bg-[#171a21] border rounded-2xl py-4 pl-6 pr-28 text-sm text-white focus:outline-none transition-colors",
+              isListening ? "border-danger ring-1 ring-danger/50" : "border-border focus:border-accent"
+            )}
           />
+          
+          {/* Microphone button */}
+          <button
+            onClick={toggleListening}
+            className={clsx(
+              "absolute right-14 w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
+              isListening 
+                ? "bg-danger text-white animate-pulse" 
+                : "text-textSecondary hover:text-white hover:bg-[#202430]"
+            )}
+            title={isListening ? "Stop listening" : "Start voice typing"}
+          >
+            {isListening ? <MicOff className="w-4.5 h-4.5" /> : <Mic className="w-4.5 h-4.5" />}
+          </button>
+
           <button
             onClick={handleSend}
-            disabled={!input.trim() || isTyping}
+            disabled={!input.trim() || isTyping || isListening}
             className="absolute right-2 w-10 h-10 rounded-xl bg-accent text-background flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accentHover transition-colors"
           >
             <Send className="w-4 h-4" />

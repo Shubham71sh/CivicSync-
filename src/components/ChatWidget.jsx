@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, X, Send, Bot, User, Loader2 } from "lucide-react";
+import { MessageSquare, X, Send, Bot, User, Loader2, Globe, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import clsx from "clsx";
+import { chatQuery } from "../services/aiService";
 
 const INITIAL_MESSAGE = {
   id: 1,
@@ -9,11 +10,14 @@ const INITIAL_MESSAGE = {
   text: "Hi there! I'm CivicSync AI. You can ask me about local laws, your eligibility for subsidies, or any pending bills."
 };
 
-const DUMMY_RESPONSES = [
-  "Based on your profile, you're eligible for the Solar Rebate. Would you like me to start the application?",
-  "The new Zoning Law (Bill #4290) has a 94% match with your interests. It primarily affects tech businesses in the Central District.",
-  "I've added the Townhall Meeting to your calendar. Is there anything else you need?",
-  "Your corruption risk alert has been forwarded to the local oversight committee securely."
+const LANGUAGES = [
+  { code: "en-US", name: "English" },
+  { code: "es-ES", name: "Español" },
+  { code: "fr-FR", name: "Français" },
+  { code: "de-DE", name: "Deutsch" },
+  { code: "hi-IN", name: "हिन्दी" },
+  { code: "zh-CN", name: "中文" },
+  { code: "ar-SA", name: "العربية" },
 ];
 
 export default function ChatWidget() {
@@ -21,7 +25,12 @@ export default function ChatWidget() {
   const [messages, setMessages] = useState([INITIAL_MESSAGE]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [selectedLang, setSelectedLang] = useState("en-US");
+  const [activeSpeakingId, setActiveSpeakingId] = useState(null);
+
   const messagesEndRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -31,23 +40,142 @@ export default function ChatWidget() {
     scrollToBottom();
   }, [messages, isTyping]);
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  // Clean up synthesis and warm up voice cache
+  useEffect(() => {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.getVoices();
+      const handleVoicesChanged = () => window.speechSynthesis.getVoices();
+      window.speechSynthesis.addEventListener("voiceschanged", handleVoicesChanged);
+      
+      return () => {
+        window.speechSynthesis.removeEventListener("voiceschanged", handleVoicesChanged);
+        window.speechSynthesis.cancel();
+      };
+    }
+  }, [isOpen]);
+
+  const startListening = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in this browser. Please try Chrome or Edge.");
+      return;
+    }
+
+    try {
+      const rec = new SpeechRecognition();
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.lang = selectedLang;
+
+      rec.onstart = () => {
+        setIsListening(true);
+      };
+
+      rec.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setInput((prev) => (prev ? prev + " " + transcript : transcript));
+      };
+
+      rec.onerror = (e) => {
+        console.error("Speech recognition error:", e);
+        setIsListening(false);
+      };
+
+      rec.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = rec;
+      rec.start();
+    } catch (err) {
+      console.error("Failed to start speech recognition:", err);
+      setIsListening(false);
+    }
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    setIsListening(false);
+  };
+
+  const toggleListening = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  };
+
+  const handleSpeak = (msgId, text) => {
+    if (!("speechSynthesis" in window)) {
+      alert("Text-to-speech is not supported in this browser.");
+      return;
+    }
+
+    if (activeSpeakingId === msgId) {
+      window.speechSynthesis.cancel();
+      setActiveSpeakingId(null);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
     
+    // Tiny delay to allow browser speech engine to clear the cancel state
+    setTimeout(() => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = selectedLang;
+      
+      const voices = window.speechSynthesis.getVoices();
+      const baseLang = selectedLang.split("-")[0];
+      const voice = voices.find(v => v.lang.toLowerCase() === selectedLang.toLowerCase()) || 
+                    voices.find(v => v.lang.toLowerCase().startsWith(baseLang.toLowerCase()));
+      if (voice) {
+        utterance.voice = voice;
+      }
+
+      utterance.onend = () => {
+        setActiveSpeakingId(null);
+      };
+
+      utterance.onerror = (e) => {
+        console.error("Speech synthesis error:", e);
+        setActiveSpeakingId(null);
+      };
+
+      setActiveSpeakingId(msgId);
+      window.speechSynthesis.speak(utterance);
+    }, 100);
+  };
+
+  const handleSend = async () => {
+    if (!input.trim() || isTyping) return;
+    
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      setActiveSpeakingId(null);
+    }
+
     const userMsg = { id: Date.now(), type: "user", text: input };
     setMessages(prev => [...prev, userMsg]);
+    const userInput = input;
     setInput("");
     setIsTyping(true);
 
-    setTimeout(() => {
-      const botMsg = { 
-        id: Date.now() + 1, 
-        type: "bot", 
-        text: DUMMY_RESPONSES[Math.floor(Math.random() * DUMMY_RESPONSES.length)] 
-      };
-      setMessages(prev => [...prev, botMsg]);
+    try {
+      const { response } = await chatQuery(userInput, { lang: selectedLang });
+      const botMsgId = Date.now() + 1;
+      setMessages(prev => [...prev, { id: botMsgId, type: "bot", text: response }]);
+      handleSpeak(botMsgId, response);
+    } catch (err) {
+      const errorMsgId = Date.now() + 1;
+      const errorText = "Sorry, I couldn't process that. Please try again.";
+      setMessages(prev => [...prev, { id: errorMsgId, type: "bot", text: errorText }]);
+      handleSpeak(errorMsgId, errorText);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -75,22 +203,75 @@ export default function ChatWidget() {
                   </p>
                 </div>
               </div>
-              <button onClick={() => setIsOpen(false)} className="text-textSecondary hover:text-white transition-colors">
-                <X className="w-5 h-5" />
-              </button>
+
+              <div className="flex items-center gap-2">
+                {/* Mini Language Selector */}
+                <div className="flex items-center gap-1 bg-[#0a0a0f] border border-border rounded-lg px-2 py-1">
+                  <Globe className="w-3.5 h-3.5 text-accent" />
+                  <select
+                    value={selectedLang}
+                    onChange={(e) => {
+                      setSelectedLang(e.target.value);
+                      if ("speechSynthesis" in window) {
+                        window.speechSynthesis.cancel();
+                        setActiveSpeakingId(null);
+                      }
+                    }}
+                    className="bg-transparent text-[10px] text-white border-none outline-none cursor-pointer font-semibold pr-1"
+                  >
+                    {LANGUAGES.map((lang) => (
+                      <option key={lang.code} value={lang.code} className="bg-[#0a0a0f] text-white">
+                        {lang.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button 
+                  onClick={() => setIsOpen(false)} 
+                  className="text-textSecondary hover:text-white transition-colors pl-1"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide bg-[#0a0a0f]">
               {messages.map((msg) => (
-                <div key={msg.id} className={clsx("flex", msg.type === "user" ? "justify-end" : "justify-start")}>
+                <div key={msg.id} className={clsx("flex flex-col", msg.type === "user" ? "items-end" : "items-start")}>
                   <div className={clsx(
-                    "max-w-[80%] rounded-2xl p-3 text-sm leading-relaxed",
+                    "max-w-[80%] rounded-2xl p-3 text-sm leading-relaxed relative",
                     msg.type === "user" 
                       ? "bg-accent text-background rounded-tr-sm" 
                       : "bg-[#171a21] border border-border text-white rounded-tl-sm"
                   )}>
-                    {msg.text}
+                    <div>{msg.text}</div>
+                    {msg.type === "bot" && (
+                      <div className="mt-2 pt-1.5 border-t border-border/30 flex justify-end">
+                        <button
+                          onClick={() => handleSpeak(msg.id, msg.text)}
+                          className={clsx(
+                            "flex items-center gap-1 text-[10px] px-2 py-0.5 rounded transition-all duration-200",
+                            activeSpeakingId === msg.id 
+                              ? "bg-accent/20 text-accent border border-accent/30" 
+                              : "text-textSecondary hover:text-white hover:bg-[#202430] border border-transparent"
+                          )}
+                        >
+                          {activeSpeakingId === msg.id ? (
+                            <>
+                              <VolumeX className="w-3.5 h-3.5 animate-pulse" />
+                              <span>Stop</span>
+                            </>
+                          ) : (
+                            <>
+                              <Volume2 className="w-3.5 h-3.5" />
+                              <span>Listen</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -113,12 +294,30 @@ export default function ChatWidget() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  placeholder="Ask a civic question..."
-                  className="w-full bg-[#0a0a0f] border border-border rounded-xl py-3 pl-4 pr-12 text-sm text-white focus:outline-none focus:border-accent"
+                  placeholder={isListening ? "Listening..." : "Ask a civic question..."}
+                  className={clsx(
+                    "w-full bg-[#0a0a0f] border rounded-xl py-3 pl-4 pr-24 text-sm text-white focus:outline-none transition-colors",
+                    isListening ? "border-danger ring-1 ring-danger/50" : "border-border focus:border-accent"
+                  )}
                 />
+                
+                {/* Microphone button */}
+                <button
+                  onClick={toggleListening}
+                  className={clsx(
+                    "absolute right-11 w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
+                    isListening 
+                      ? "bg-danger text-white animate-pulse" 
+                      : "text-textSecondary hover:text-white hover:bg-[#202430]"
+                  )}
+                  title={isListening ? "Stop listening" : "Start voice typing"}
+                >
+                  {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </button>
+
                 <button 
                   onClick={handleSend}
-                  disabled={!input.trim() || isTyping}
+                  disabled={!input.trim() || isTyping || isListening}
                   className="absolute right-2 w-8 h-8 rounded-lg bg-accent text-background flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accentHover transition-colors"
                 >
                   <Send className="w-4 h-4" />
