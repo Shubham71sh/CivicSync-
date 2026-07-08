@@ -21,6 +21,8 @@ import GenericPage from "./pages/GenericPage";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import UploadBill from "./pages/UploadBill";
+import EmergencyNavigator from "./pages/EmergencyNavigator";
+import DisasterRelief from "./pages/DisasterRelief";
 import { CheckSquare, Target, History, Bookmark, BarChart2 } from "lucide-react";
 
 function App() {
@@ -31,6 +33,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/upload" element={<UploadBill />} />
+        <Route path="/disaster-relief" element={<DisasterRelief />} />
         
         {/* Dashboard Routes with Sidebar/Layout */}
         <Route element={<DashboardLayout />}>
@@ -45,6 +48,7 @@ function App() {
           <Route path="/roadmap" element={<Roadmap />} />
           <Route path="/townhall" element={<TownhallEvents />} />
           <Route path="/archive" element={<Archive />} />
+          <Route path="/emergency" element={<EmergencyNavigator />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/support" element={<Support />} />
           
