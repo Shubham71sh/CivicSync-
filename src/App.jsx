@@ -1,67 +1,158 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import LandingPage from "./pages/LandingPage";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { Suspense, lazy } from "react";
+import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./routes/ProtectedRoute";
+import LandingLayout from "./layouts/LandingLayout";
 import DashboardLayout from "./layouts/DashboardLayout";
-import DashboardOverview from "./pages/DashboardOverview";
-import CitizenOverview from "./pages/CitizenOverview";
-import BillSimplifier from "./pages/BillSimplifier";
-import CivicGPS from "./pages/CivicGPS";
-import FraudWatch from "./pages/FraudWatch";
-import AIChat from "./pages/AIChat";
-import SentimentAnalyzer from "./pages/SentimentAnalyzer";
-import ImpactSimulator from "./pages/ImpactSimulator";
-import Roadmap from "./pages/Roadmap";
-import Archive from "./pages/Archive";
-import Settings from "./pages/Settings";
-import Support from "./pages/Support";
-import TownhallEvents from "./pages/TownhallEvents";
-import CompareBills from "./pages/CompareBills";
-import MyProfile from "./pages/MyProfile";
-import Notifications from "./pages/Notifications";
-import GenericPage from "./pages/GenericPage";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
-import UploadBill from "./pages/UploadBill";
-import { CheckSquare, Target, History, Bookmark, BarChart2 } from "lucide-react";
+import LoadingSpinner from "./components/ui/LoadingSpinner";
+import ErrorBoundary from "./components/ui/ErrorBoundary";
+import { CheckSquare, Target, History, Bookmark, BarChart2, Search } from "lucide-react";
+
+// ─── Public Pages ────────────────────────────────────────────────────────────
+import Home from "./pages/public/Home";
+import Login from "./pages/public/Login";
+import Signup from "./pages/public/Signup";
+import Features from "./pages/public/Features";
+import About from "./pages/public/About";
+import Contact from "./pages/public/Contact";
+
+// ─── Protected App Pages ─────────────────────────────────────────────────────
+import Dashboard from "./pages/app/Dashboard";
+import UploadBill from "./pages/app/UploadBill";
+import BillHistory from "./pages/app/BillHistory";
+import AISummary from "./pages/app/AISummary";
+import CompareBills from "./pages/app/CompareBills";
+import AIChat from "./pages/app/AIChat";
+import CivicGPS from "./pages/app/CivicGPS";
+import ImpactSimulator from "./pages/app/ImpactSimulator";
+import FraudWatch from "./pages/app/FraudWatch";
+import TownhallEvents from "./pages/app/TownhallEvents";
+import Roadmap from "./pages/app/Roadmap";
+import Profile from "./pages/app/Profile";
+import Notifications from "./pages/app/Notifications";
+import Settings from "./pages/app/Settings";
+import GenericPage from "./pages/app/GenericPage";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// App Route Tree
+//
+// Structure:
+//   / (public, LandingLayout)
+//     ├── / → Home
+//     ├── /features → Features
+//     ├── /about → About
+//     └── /contact → Contact
+//
+//   /login, /signup (standalone, no layout)
+//
+//   /dashboard/* (protected, ProtectedRoute → DashboardLayout)
+//     ├── /dashboard → Dashboard overview
+//     ├── /dashboard/upload → Upload Bill
+//     ├── /dashboard/bills → Bill History
+//     ├── /dashboard/ai-summary → AI Summary
+//     ├── /dashboard/compare → Compare Bills
+//     ├── /dashboard/chat → AI Chat
+//     ├── /dashboard/gps → Civic GPS
+//     ├── /dashboard/fraud → Fraud Watch
+//     ├── /dashboard/impact → Impact Simulator
+//     ├── /dashboard/townhall → Townhall Events
+//     ├── /dashboard/roadmap → Roadmap
+//     ├── /dashboard/profile → My Profile
+//     ├── /dashboard/notifications → Notifications
+//     ├── /dashboard/settings → Settings
+//     └── Stubs: eligibility, benefits, analyses, saved, archive, reports, support, scheme
+// ─────────────────────────────────────────────────────────────────────────────
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/upload" element={<UploadBill />} />
-        
-        {/* Dashboard Routes with Sidebar/Layout */}
-        <Route element={<DashboardLayout />}>
-          <Route path="/dashboard" element={<DashboardOverview />} />
-          <Route path="/citizen" element={<CitizenOverview />} />
-          <Route path="/bills" element={<BillSimplifier />} />
-          <Route path="/gps" element={<CivicGPS />} />
-          <Route path="/fraud" element={<FraudWatch />} />
-          <Route path="/chat" element={<AIChat />} />
-          <Route path="/sentiment" element={<SentimentAnalyzer />} />
-          <Route path="/impact" element={<ImpactSimulator />} />
-          <Route path="/roadmap" element={<Roadmap />} />
-          <Route path="/townhall" element={<TownhallEvents />} />
-          <Route path="/archive" element={<Archive />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/support" element={<Support />} />
-          
-          {/* New Pages */}
-          <Route path="/compare" element={<CompareBills />} />
-          <Route path="/profile" element={<MyProfile />} />
-          <Route path="/notifications" element={<Notifications />} />
-          
-          {/* Generic Stubs */}
-          <Route path="/eligibility" element={<GenericPage title="Eligibility Checker" description="Verify your eligibility across 100+ local and federal programs." icon={CheckSquare} />} />
-          <Route path="/benefits" element={<GenericPage title="Benefits Tracker" description="Track the status and timeline of your claimed benefits." icon={Target} />} />
-          <Route path="/analyses" element={<GenericPage title="My Analyses" description="Review past bills you've processed through CivicSync AI." icon={History} />} />
-          <Route path="/saved" element={<GenericPage title="Saved Bills" description="Manage and organize legislation you're tracking." icon={Bookmark} />} />
-          <Route path="/reports" element={<GenericPage title="Reports & Analytics" description="Generate deep insights and export PDF/CSV data." icon={BarChart2} />} />
-        </Route>
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <ErrorBoundary>
+          <Routes>
+
+            {/* ── Public Marketing Routes ── */}
+            <Route element={<LandingLayout />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/features" element={<Features />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
+            </Route>
+
+            {/* ── Auth Routes (no layout wrapper) ── */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+
+            {/* ── Protected Dashboard Routes ── */}
+            <Route element={<ProtectedRoute />}>
+              <Route element={<DashboardLayout />}>
+
+                {/* Core */}
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/dashboard/upload" element={<UploadBill />} />
+                <Route path="/dashboard/bills" element={<BillHistory />} />
+                <Route path="/dashboard/ai-summary" element={<AISummary />} />
+                <Route path="/dashboard/compare" element={<CompareBills />} />
+
+                {/* AI */}
+                <Route path="/dashboard/chat" element={<AIChat />} />
+
+                {/* Intelligence */}
+                <Route path="/dashboard/gps" element={<CivicGPS />} />
+                <Route path="/dashboard/fraud" element={<FraudWatch />} />
+                <Route path="/dashboard/impact" element={<ImpactSimulator />} />
+                <Route path="/dashboard/roadmap" element={<Roadmap />} />
+
+                {/* Community */}
+                <Route path="/dashboard/townhall" element={<TownhallEvents />} />
+
+                {/* Account */}
+                <Route path="/dashboard/profile" element={<Profile />} />
+                <Route path="/dashboard/notifications" element={<Notifications />} />
+                <Route path="/dashboard/settings" element={<Settings />} />
+
+                {/* Stubs (Coming Soon) */}
+                <Route path="/dashboard/eligibility" element={<GenericPage title="Eligibility Checker" description="Verify your eligibility across 100+ local and federal programs." icon={CheckSquare} />} />
+                <Route path="/dashboard/benefits" element={<GenericPage title="Benefits Tracker" description="Track the status and timeline of your claimed benefits." icon={Target} />} />
+                <Route path="/dashboard/analyses" element={<GenericPage title="My Analyses" description="Review past bills you've processed through CivicSync AI." icon={History} />} />
+                <Route path="/dashboard/saved" element={<GenericPage title="Saved Bills" description="Manage and organize legislation you're tracking." icon={Bookmark} />} />
+                <Route path="/dashboard/reports" element={<GenericPage title="Reports & Analytics" description="Generate deep insights and export PDF/CSV data." icon={BarChart2} />} />
+                <Route path="/dashboard/archive" element={<GenericPage title="Document Vault" description="All your uploaded bills, documents, and processed analyses." icon={History} />} />
+                <Route path="/dashboard/support" element={<GenericPage title="Help Center" description="Documentation, FAQs, and direct support from the CivicSync team." icon={CheckSquare} />} />
+                <Route path="/dashboard/scheme" element={<GenericPage title="Scheme Finder" description="Discover government schemes and programs tailored to your profile." icon={Search} />} />
+
+              </Route>
+            </Route>
+
+            {/* Legacy route redirects — old paths redirect to new /dashboard/* paths */}
+            <Route path="/bills" element={<Navigate to="/dashboard/bills" replace />} />
+            <Route path="/chat" element={<Navigate to="/dashboard/chat" replace />} />
+            <Route path="/gps" element={<Navigate to="/dashboard/gps" replace />} />
+            <Route path="/fraud" element={<Navigate to="/dashboard/fraud" replace />} />
+            <Route path="/impact" element={<Navigate to="/dashboard/impact" replace />} />
+            <Route path="/townhall" element={<Navigate to="/dashboard/townhall" replace />} />
+            <Route path="/compare" element={<Navigate to="/dashboard/compare" replace />} />
+            <Route path="/profile" element={<Navigate to="/dashboard/profile" replace />} />
+            <Route path="/notifications" element={<Navigate to="/dashboard/notifications" replace />} />
+            <Route path="/settings" element={<Navigate to="/dashboard/settings" replace />} />
+            <Route path="/upload" element={<Navigate to="/dashboard/upload" replace />} />
+            <Route path="/roadmap" element={<Navigate to="/dashboard/roadmap" replace />} />
+            <Route path="/citizen" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/archive" element={<Navigate to="/dashboard/archive" replace />} />
+            <Route path="/eligibility" element={<Navigate to="/dashboard/eligibility" replace />} />
+            <Route path="/benefits" element={<Navigate to="/dashboard/benefits" replace />} />
+            <Route path="/analyses" element={<Navigate to="/dashboard/analyses" replace />} />
+            <Route path="/saved" element={<Navigate to="/dashboard/saved" replace />} />
+            <Route path="/reports" element={<Navigate to="/dashboard/reports" replace />} />
+            <Route path="/sentiment" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/support" element={<Navigate to="/dashboard/support" replace />} />
+
+            {/* 404 Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+
+          </Routes>
+        </ErrorBoundary>
+      </Router>
+    </AuthProvider>
   );
 }
 
