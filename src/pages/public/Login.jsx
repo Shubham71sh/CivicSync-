@@ -1,25 +1,38 @@
 import { motion } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
-  Building2,
-  Mail,
-  Lock,
-  ArrowRight,
-  ShieldCheck,
-  Circle
+  Building2, Mail, Lock, ArrowRight, ShieldCheck, Circle, Eye, EyeOff, AlertCircle
 } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "../../hooks/useAuth";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const location = useLocation();
+  const { login, loading } = useAuth();
 
-  const handleLogin = (e) => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  // Where to redirect after successful login
+  const from = location.state?.from?.pathname || "/dashboard";
+
+  const handleLogin = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setTimeout(() => {
-      navigate("/dashboard");
-    }, 1500);
+    setError("");
+    setIsSubmitting(true);
+
+    const result = await login(email, password);
+
+    if (result.success) {
+      navigate(from, { replace: true });
+    } else {
+      setError(result.error || "Login failed. Please try again.");
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -66,12 +79,38 @@ export default function Login() {
             <p className="text-textSecondary">Enter your credentials to access your account.</p>
           </div>
 
+          {/* Demo hint */}
+          <div className="mb-6 p-4 rounded-xl bg-accent/5 border border-accent/20 flex items-start gap-3">
+            <ShieldCheck className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-xs text-accent font-semibold mb-1">Demo Mode Active</p>
+              <p className="text-xs text-textSecondary">Use any email & password to sign in. <span className="text-accent font-medium">demo@civicsync.com</span> for the demo account.</p>
+            </div>
+          </div>
+
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 rounded-xl bg-danger/10 border border-danger/20 flex items-center gap-3"
+            >
+              <AlertCircle className="w-4 h-4 text-danger flex-shrink-0" />
+              <p className="text-sm text-danger">{error}</p>
+            </motion.div>
+          )}
+
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
               <label className="text-xs text-textSecondary uppercase tracking-widest font-semibold block mb-2">Email Address</label>
               <div className="relative">
                 <Mail className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-textMuted" />
-                <input required type="email" placeholder="john.doe@example.com" className="w-full bg-[#171a21] border border-border rounded-xl py-3.5 pl-12 pr-4 text-white focus:outline-none focus:border-accent transition-colors" />
+                <input 
+                  required 
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="john.doe@example.com" 
+                  className="w-full bg-[#171a21] border border-border rounded-xl py-3.5 pl-12 pr-4 text-white focus:outline-none focus:border-accent transition-colors" 
+                />
               </div>
             </div>
             
@@ -82,12 +121,30 @@ export default function Login() {
               </div>
               <div className="relative">
                 <Lock className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-textMuted" />
-                <input required type="password" placeholder="••••••••" className="w-full bg-[#171a21] border border-border rounded-xl py-3.5 pl-12 pr-4 text-white focus:outline-none focus:border-accent transition-colors" />
+                <input 
+                  required 
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••" 
+                  className="w-full bg-[#171a21] border border-border rounded-xl py-3.5 pl-12 pr-12 text-white focus:outline-none focus:border-accent transition-colors" 
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-textMuted hover:text-white transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
             </div>
 
-            <button disabled={loading} type="submit" className="w-full py-4 rounded-xl bg-accent text-[#0a0a0f] font-bold shadow-glow-accent hover:bg-accentHover transition-colors flex items-center justify-center gap-2 mt-4 disabled:opacity-70">
-              {loading ? "Authenticating..." : <>Sign In <ArrowRight className="w-5 h-5" /></>}
+            <button 
+              disabled={isSubmitting} 
+              type="submit" 
+              className="w-full py-4 rounded-xl bg-accent text-[#0a0a0f] font-bold shadow-glow-accent hover:bg-accentHover transition-colors flex items-center justify-center gap-2 mt-4 disabled:opacity-70"
+            >
+              {isSubmitting ? "Authenticating..." : <><span>Sign In</span> <ArrowRight className="w-5 h-5" /></>}
             </button>
           </form>
 
