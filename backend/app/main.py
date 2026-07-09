@@ -10,9 +10,16 @@ import os
 # -----------------------------
 load_dotenv()
 
-client = genai.Client(
-    api_key=os.getenv("GEMINI_API_KEY")
-)
+api_key = os.getenv("GEMINI_API_KEY")
+client = None
+
+if api_key:
+    try:
+        client = genai.Client(api_key=api_key)
+    except Exception as e:
+        print(f"Error initializing Gemini client: {e}")
+else:
+    print("WARNING: GEMINI_API_KEY is not set. Please add it to your .env file.")
 
 # -----------------------------
 # FastAPI App
@@ -67,6 +74,10 @@ profile_data = {
 # -----------------------------
 @app.post("/chat")
 async def chat(data: ChatRequest):
+    if not client:
+        return {
+            "response": "Error: GEMINI_API_KEY is not set or invalid. Please check your backend configuration."
+        }
 
     language_map = {
         "en": "English",
@@ -74,21 +85,47 @@ async def chat(data: ChatRequest):
         "pa": "Punjabi"
     }
 
+    # Extract language prefix (e.g. "en-US" -> "en")
+    lang_code = data.language.split("-")[0] if "-" in data.language else data.language
+
+    profile_context = f"""
+User Profile Context:
+- Name: {profile_data.get('name', 'N/A')}
+- Email: {profile_data.get('email', 'N/A')}
+- Phone: {profile_data.get('phone', 'N/A')}
+- Location: {profile_data.get('location', 'N/A')}
+- Date of Birth: {profile_data.get('dob', 'N/A')}
+- Profession/Industry: {profile_data.get('profession', 'N/A')}
+- Annual Income: {profile_data.get('income', 'N/A')}
+"""
+
     prompt = f"""
-Respond only in {language_map.get(data.language, 'English')}.
+You are CivicSync AI, a highly intelligent, empathetic, and professional civic assistant.
+Use the user's profile context below to personalize, tailor, and make the response highly relevant.
+For example, if they ask about laws, taxes, or benefits, reference their location, profession, or income if applicable.
+
+{profile_context}
+
+Respond ONLY in the language: {language_map.get(lang_code, 'English')}.
+Keep formatting clean, simple, and easy to read.
 
 User Question:
 {data.message}
 """
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
-
-    return {
-        "response": response.text
-    }
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+        return {
+            "response": response.text
+        }
+    except Exception as e:
+        print(f"Error calling Gemini API: {e}")
+        return {
+            "response": f"Error communicating with Gemini: {str(e)}"
+        }
 
 
 # -----------------------------

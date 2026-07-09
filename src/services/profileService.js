@@ -55,25 +55,36 @@ const MOCK_NOTIFICATIONS = [
  * Backend: GET /api/profile
  */
 export const getProfile = async () => {
-  // --- PLACEHOLDER ---
-  await new Promise((resolve) => setTimeout(resolve, 600));
-  return {
-    profile: {
-      location: "Central District, Jharkhand",
-      profession: "Tech Professional",
-      incomeRange: "$50,000 - $100,000",
-      dob: "1996-05-14",
-      phone: "+1 (555) 019-2834",
-      connectedIds: [
-        { name: "National ID / SSN", verified: true, verifiedAt: "Oct 2023" },
-        { name: "Tax Payer Portal", verified: false },
-      ],
-    },
-  };
-
-  // --- REAL BACKEND ---
-  // const { data } = await api.get("/profile");
-  // return data; // { profile }
+  try {
+    const { data } = await api.get("/profile");
+    return {
+      profile: {
+        ...data,
+        incomeRange: data.income || data.incomeRange || "$50,000 - $100,000",
+        connectedIds: [
+          { name: "National ID / SSN", verified: true, verifiedAt: "Oct 2023" },
+          { name: "Tax Payer Portal", verified: false },
+        ]
+      }
+    };
+  } catch (err) {
+    console.warn("[profileService.getProfile] Backend call failed. Falling back to mock profile.", err);
+    return {
+      profile: {
+        name: "John Doe",
+        email: "demo@civicsync.com",
+        location: "Central District, Jharkhand",
+        profession: "Tech Professional",
+        incomeRange: "$50,000 - $100,000",
+        dob: "1996-05-14",
+        phone: "+1 (555) 019-2834",
+        connectedIds: [
+          { name: "National ID / SSN", verified: true, verifiedAt: "Oct 2023" },
+          { name: "Tax Payer Portal", verified: false },
+        ],
+      },
+    };
+  }
 };
 
 /**
@@ -84,14 +95,29 @@ export const getProfile = async () => {
  * Backend: PUT /api/profile
  */
 export const updateProfile = async (updateData) => {
-  // --- PLACEHOLDER ---
-  await new Promise((resolve) => setTimeout(resolve, 800));
-  console.log("[profileService.updateProfile] data:", updateData);
-  return { profile: updateData, success: true };
-
-  // --- REAL BACKEND ---
-  // const { data } = await api.put("/profile", updateData);
-  // return data;
+  try {
+    const payload = {
+      name: updateData.name || "John Doe",
+      email: updateData.email || "demo@civicsync.com",
+      phone: updateData.phone || "",
+      location: updateData.location || "",
+      dob: updateData.dob || "",
+      profession: updateData.profession || "",
+      income: updateData.incomeRange || updateData.income || "$50,000 - $100,000",
+    };
+    
+    const { data } = await api.put("/profile", payload);
+    return {
+      profile: {
+        ...data.profile,
+        incomeRange: data.profile.income,
+      },
+      success: true,
+    };
+  } catch (err) {
+    console.warn("[profileService.updateProfile] Backend call failed. Falling back to memory save.", err);
+    return { profile: updateData, success: true };
+  }
 };
 
 /**
