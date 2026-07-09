@@ -2,50 +2,6 @@ import React from "react";
 import { Check, ChevronRight, Clock, User, Phone, Calendar, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 
-const timelineStages = [
-  {
-    id: 1,
-    label: "Report Submitted",
-    date: "June 28, 2025",
-    desc: "Disaster report filed via CivicSync AI platform",
-    completed: true,
-  },
-  {
-    id: 2,
-    label: "AI Verification",
-    date: "June 28, 2025",
-    desc: "Computer vision confirmed 82% structural damage",
-    completed: true,
-  },
-  {
-    id: 3,
-    label: "Officer Assigned",
-    date: "July 1, 2025",
-    desc: "Block Officer assigned to your relief case",
-    completed: true,
-  },
-  {
-    id: 4,
-    label: "Physical Inspection",
-    date: "July 8, 2025",
-    desc: "On-site visit scheduled at your property",
-    completed: false,
-  },
-  {
-    id: 5,
-    label: "Claim Approved",
-    date: "Pending",
-    desc: "Final approval by District Relief Commissioner",
-    completed: false,
-  },
-  {
-    id: 6,
-    label: "Payment Released",
-    date: "Pending",
-    desc: "DBT transfer to Aadhaar-linked bank account",
-    completed: false,
-  },
-];
 
 // The currently active officer details
 const ASSIGNED_OFFICER = {
@@ -58,8 +14,21 @@ const ASSIGNED_OFFICER = {
   note: "Please ensure you are present at the property address during inspection. Keep Aadhaar card and land documents ready.",
 };
 
-export default function Step8ClaimTimeline({ onNext }) {
-  const completedCount = timelineStages.filter((s) => s.completed).length;
+export default function Step8ClaimTimeline({
+  timeline = [],
+  onNext,
+}) {
+  const formattedTimeline = timeline.map((item, index) => ({
+    id: index + 1,
+    label: item.title,
+    desc: "",
+    date: item.status,
+    completed: item.status === "Completed",
+  }));
+
+  const completedCount = formattedTimeline.filter(
+  (s) => s.completed
+).length;
 
   return (
     <div className="space-y-6">
@@ -85,19 +54,19 @@ export default function Step8ClaimTimeline({ onNext }) {
             Overall Progress
           </span>
           <p className="text-xs text-white font-semibold font-inter mt-0.5">
-            {completedCount} of {timelineStages.length} stages done
+            {completedCount} of {formattedTimeline.length} stages done
           </p>
         </div>
         <div className="flex-1 h-1.5 bg-[#171923] rounded-full overflow-hidden">
           <motion.div
             className="h-full bg-gradient-to-r from-[#F4C95D] to-[#FFD978]"
             initial={{ width: 0 }}
-            animate={{ width: `${(completedCount / timelineStages.length) * 100}%` }}
+            animate={{ width: `${(completedCount / formattedTimeline.length) * 100}%` }}
             transition={{ duration: 1, delay: 0.2 }}
           />
         </div>
         <span className="text-sm font-bold text-[#F4C95D] font-space-grotesk shrink-0">
-          {Math.round((completedCount / timelineStages.length) * 100)}%
+          {Math.round((completedCount / formattedTimeline.length) * 100)}%
         </span>
       </div>
 
@@ -107,9 +76,12 @@ export default function Step8ClaimTimeline({ onNext }) {
         <div className="absolute top-[22px] left-8 right-8 h-px bg-[rgba(255,255,255,0.06)] hidden md:block" />
 
         <div className="grid grid-cols-2 md:grid-cols-6 gap-4 md:gap-3 relative">
-          {timelineStages.map((stage, idx) => {
+          {formattedTimeline.map((stage, idx) => {
             const isCompleted = stage.completed;
-            const isNext = !isCompleted && idx > 0 && timelineStages[idx - 1].completed;
+            const isNext =
+              !isCompleted &&
+              idx > 0 &&
+              formattedTimeline[idx - 1].completed;
 
             return (
               <div

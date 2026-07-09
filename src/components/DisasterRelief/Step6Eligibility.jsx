@@ -1,15 +1,10 @@
 import React from "react";
-import { Check, ShieldCheck, ChevronRight } from "lucide-react";
+import { Check, XCircle, ChevronRight } from "lucide-react";
 
-const eligibilityRules = [
-  { label: "Disaster officially declared", desc: "Municipal state of emergency active for Patna Zone 14" },
-  { label: "GPS matched", desc: "Evidence geotags overlay within declared incident perimeter coordinates" },
-  { label: "Aadhaar verified", desc: "Identity and digital signature validated via UIDAI API interface" },
-  { label: "Income eligible", desc: "Total household assets check below maximum economic threshold limit" },
-  { label: "Damage threshold crossed", desc: "AI-assessed structural damage level exceeds 40% threshold requirement" }
-];
-
-export default function Step6Eligibility({ onNext }) {
+export default function Step6Eligibility({
+  eligibility = {},
+  onNext,
+}) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -24,7 +19,7 @@ export default function Step6Eligibility({ onNext }) {
 
       {/* Checklist Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        {eligibilityRules.map((rule, idx) => (
+        {Object.entries(eligibility || {}).map(([key, value], idx) => (
           <div
             key={idx}
             className="p-5 rounded-[20px] bg-[#11131A] border border-[rgba(255,255,255,0.08)] flex flex-col justify-between hover:border-[rgba(255,255,255,0.15)] transition-all duration-300 min-h-[140px]"
@@ -32,19 +27,30 @@ export default function Step6Eligibility({ onNext }) {
             <div className="flex items-center justify-between">
               {/* Gold Checkmark */}
               <div className="w-7 h-7 rounded-[10px] bg-[#22C55E]/10 border border-[#22C55E]/20 flex items-center justify-center text-[#22C55E] shrink-0">
-                <Check className="w-4 h-4 stroke-[3]" />
+                {value ? (
+                    <Check className="w-4 h-4 stroke-[3]" />
+                ) : (
+                    <XCircle className="w-4 h-4 stroke-[3] text-red-500" />
+                )}
               </div>
-              <span className="text-[10px] text-[#22C55E] font-bold uppercase tracking-wider font-poppins">
-                Passed
+              <span
+                  className={`text-[10px] font-bold uppercase tracking-wider font-poppins ${
+                    value ? "text-[#22C55E]" : "text-red-500"
+                  }`}
+                >
+                  {value ? "Passed" : "Failed"}
               </span>
             </div>
 
             <div className="space-y-1 mt-4">
               <h4 className="text-xs font-bold text-white font-poppins">
-                {rule.label}
+                {key
+                  .replaceAll("_", " ")
+                  .replace(/\b\w/g, c => c.toUpperCase())
+                }
               </h4>
               <p className="text-[9px] text-[#A5A8B5] leading-normal font-inter">
-                {rule.desc}
+                {value ? "Requirement verified successfully." : "Requirement not satisfied."}
               </p>
             </div>
           </div>

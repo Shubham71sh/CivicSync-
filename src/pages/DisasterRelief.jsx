@@ -207,27 +207,39 @@ export default function DisasterRelief() {
             )}
             {currentStep === 4 && (
               <Step4DamageReport
-                  data={analysisData}
+                  data={analysisData?.analysis}
+                  images={analysisData?.images || []}
                   onNext={goNext}
               />
             )}
             {currentStep === 5 && (
               <Step5GovernmentSchemes
-                schemes={mockSchemes}
+                schemes={analysisData?.schemes || []}
                 onNext={goNext}
               />
             )}
             {currentStep === 6 && (
-              <Step6Eligibility onNext={goNext} />
+              <Step6Eligibility
+                eligibility={analysisData?.eligibility}
+                onNext={goNext}
+              />
             )}
             {currentStep === 7 && (
-              <Step7Documents onNext={goNext} />
+              <Step7Documents
+                documents={analysisData?.documents || []}
+                onNext={goNext}
+               />
             )}
             {currentStep === 8 && (
-              <Step8ClaimTimeline onNext={goNext} />
+              <Step8ClaimTimeline
+                  timeline={analysisData?.timeline || []}
+                  onNext={goNext}
+              />
             )}
             {currentStep === 9 && (
-              <Step9NearbyHelp />
+                <Step9NearbyHelp
+                    services={analysisData?.nearby_help || []}
+                />
             )}
           </motion.div>
         </AnimatePresence>
