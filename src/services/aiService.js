@@ -96,43 +96,55 @@ export const summarizeBill = async (billId, options = { mode: "standard" }) => {
  * Supports localized mock answers using the option { lang }.
  */
 export const chatQuery = async (message, options = {}) => {
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-  console.log("[aiService.chatQuery] message:", message, "options:", options);
-  
   const lang = options.lang || "en-US";
-  const dict = TRANSLATIONS[lang] || TRANSLATIONS["en-US"];
-  const query = message.toLowerCase().trim();
+  
+  try {
+    const response = await api.post("/chat", {
+      message,
+      language: lang,
+    });
+    
+    return {
+      response: response.data.response,
+      sources: [],
+    };
+  } catch (err) {
+    console.warn("[aiService.chatQuery] Backend call failed. Falling back to mock responses.", err);
+    
+    const dict = TRANSLATIONS[lang] || TRANSLATIONS["en-US"];
+    const query = message.toLowerCase().trim();
 
-  let response = "";
-  let sources = [];
+    let response = "";
+    let sources = [];
 
-  if (query.match(/\b(hi|hello|hey|greetings|hii+|namaste|manaste|pranam|hola|bonjour|hallo)\b/)) {
-    response = dict.greeting;
-    sources = [lang === "hi-IN" ? "सिविकसिंक एआई गाइड" : "CivicSync AI Guide"];
-  } else if (query.includes("carbon") || query.includes("tax")) {
-    response = dict.carbon;
-    sources = ["Carbon Tax Act 2024 — Clause 14.2"];
-  } else if (query.includes("solar") || query.includes("rebate") || query.includes("scheme") || query.includes("eligible")) {
-    response = dict.solar;
-    sources = ["Renewable Energy Rebates — Section 42-B"];
-  } else if (query.includes("zoning") || query.includes("district") || query.includes("law")) {
-    response = dict.zoning;
-    sources = ["Zoning Law Amendment Bill #4290"];
-  } else if (query.includes("corruption") || query.includes("fraud") || query.includes("watch")) {
-    response = dict.corruption;
-    sources = ["CivicSync Fraud Watch Registry"];
-  } else if (query.includes("infrastructure") || query.includes("road") || query.includes("rural")) {
-    response = dict.infrastructure;
-    sources = ["National Infrastructure Act 2024 — Annex B"];
-  } else {
-    response = dict.fallback;
-    sources = ["Bill #4290 — Section 14.2", "Infrastructure Act 2024 — Annex B"];
+    if (query.match(/\b(hi|hello|hey|greetings|hii+|namaste|manaste|pranam|hola|bonjour|hallo)\b/)) {
+      response = dict.greeting;
+      sources = [lang === "hi-IN" ? "सिविकसिंक एआई गाइड" : "CivicSync AI Guide"];
+    } else if (query.includes("carbon") || query.includes("tax")) {
+      response = dict.carbon;
+      sources = ["Carbon Tax Act 2024 — Clause 14.2"];
+    } else if (query.includes("solar") || query.includes("rebate") || query.includes("scheme") || query.includes("eligible")) {
+      response = dict.solar;
+      sources = ["Renewable Energy Rebates — Section 42-B"];
+    } else if (query.includes("zoning") || query.includes("district") || query.includes("law")) {
+      response = dict.zoning;
+      sources = ["Zoning Law Amendment Bill #4290"];
+    } else if (query.includes("corruption") || query.includes("fraud") || query.includes("watch")) {
+      response = dict.corruption;
+      sources = ["CivicSync Fraud Watch Registry"];
+    } else if (query.includes("infrastructure") || query.includes("road") || query.includes("rural")) {
+      response = dict.infrastructure;
+      sources = ["National Infrastructure Act 2024 — Annex B"];
+    } else {
+      response = dict.fallback;
+      sources = ["Bill #4290 — Section 14.2", "Infrastructure Act 2024 — Annex B"];
+    }
+
+    return {
+      response,
+      sources,
+    };
   }
-
-  return {
-    response,
-    sources,
-  };
 };
 
 /**

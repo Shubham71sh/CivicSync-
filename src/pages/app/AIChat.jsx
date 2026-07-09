@@ -125,9 +125,11 @@ export default function AIChat() {
       utterance.lang = selectedLang;
       
       const voices = window.speechSynthesis.getVoices();
-      const baseLang = selectedLang.split("-")[0];
+      const baseLang = selectedLang.split("-")[0].toLowerCase();
+      // Match by exact lang, base lang, or check voice name for language indicators (like "hindi" or "hi")
       const voice = voices.find(v => v.lang.toLowerCase() === selectedLang.toLowerCase()) || 
-                    voices.find(v => v.lang.toLowerCase().startsWith(baseLang.toLowerCase()));
+                    voices.find(v => v.lang.toLowerCase().replace('_', '-').startsWith(baseLang)) ||
+                    voices.find(v => v.name.toLowerCase().includes("hindi") || v.name.toLowerCase().includes("kalpana") || v.name.toLowerCase().includes("hemant") || v.lang.toLowerCase().startsWith("hi"));
       if (voice) {
         utterance.voice = voice;
       }
@@ -138,7 +140,21 @@ export default function AIChat() {
 
       utterance.onerror = (e) => {
         console.error("Speech synthesis error:", e);
-        setActiveSpeakingId(null);
+        if (utterance.voice) {
+          console.log("Retrying speech synthesis without explicit voice selection...");
+          const retryUtterance = new SpeechSynthesisUtterance(text);
+          retryUtterance.lang = selectedLang;
+          retryUtterance.onend = () => {
+            setActiveSpeakingId(null);
+          };
+          retryUtterance.onerror = (err) => {
+            console.error("Retry speech synthesis error:", err);
+            setActiveSpeakingId(null);
+          };
+          window.speechSynthesis.speak(retryUtterance);
+        } else {
+          setActiveSpeakingId(null);
+        }
       };
 
       setActiveSpeakingId(msgId);
@@ -239,12 +255,16 @@ export default function AIChat() {
                 <Bot className="w-5 h-5 text-background" />
               </div>
             )}
-            <div className={clsx(
-              "max-w-[75%] rounded-2xl p-4 text-sm leading-relaxed relative",
-              msg.type === "user"
-                ? "bg-accent text-background rounded-tr-sm font-medium"
-                : "bg-[#171a21] border border-border text-white rounded-tl-sm"
-            )}>
+            <div 
+              onClick={() => msg.type === "user" && setInput(msg.text)}
+              className={clsx(
+                "max-w-[75%] rounded-2xl p-4 text-sm leading-relaxed relative transition-all duration-200 select-none",
+                msg.type === "user"
+                  ? "bg-accent text-background rounded-tr-sm font-medium cursor-pointer hover:bg-accentHover hover:scale-[1.01] active:scale-[0.99]"
+                  : "bg-[#171a21] border border-border text-white rounded-tl-sm"
+              )}
+              title={msg.type === "user" ? "Click to edit this question" : undefined}
+            >
               <div>{msg.text}</div>
               {msg.type === "bot" && (
                 <div className="mt-3 pt-2 border-t border-border/40 flex justify-end">
