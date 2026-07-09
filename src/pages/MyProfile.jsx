@@ -1,9 +1,58 @@
+import { getProfile, updateProfile } from "../services/profileAPI";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { User, MapPin, Briefcase, Calendar, Mail, Phone, ShieldCheck, Edit3 } from "lucide-react";
-import { useState } from "react";
+
 
 export default function MyProfile() {
-  const [isEditing, setIsEditing] = useState(false);
+const [isEditing, setIsEditing] = useState(false);
+
+const [profile, setProfile] = useState({
+  name: "",
+  email: "",
+  phone: "",
+  location: "",
+  dob: "",
+  profession: "",
+  income: "",
+});
+useEffect(() => {
+  const fetchProfile = async () => {
+    try {
+      const res = await getProfile();
+      setProfile(res.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+    fetchProfile();
+}, []);
+  const handleChange = (e) => {
+  setProfile({
+    ...profile,
+    [e.target.name]: e.target.value,
+  });
+};
+const handleSave = async () => {
+  try {
+    // Save updated profile
+    await updateProfile(profile);
+
+    // Fetch the latest profile from backend
+    const res = await getProfile();
+    setProfile(res.data);
+
+    alert("Profile updated successfully!");
+
+    setIsEditing(false);
+  } catch (error) {
+    console.error(error);
+    alert("Failed to update profile");
+  }
+};
+console.log("isEditing:",isEditing);
+
+
 
   return (
     <div className="space-y-6 pb-20 max-w-5xl mx-auto">
@@ -12,12 +61,20 @@ export default function MyProfile() {
           <h1 className="text-2xl font-bold text-white tracking-tight mb-1">My Profile</h1>
           <p className="text-sm text-textSecondary">Manage your civic identity and AI parameters.</p>
         </div>
-        <button 
-          onClick={() => setIsEditing(!isEditing)}
-          className="px-4 py-2 rounded-lg bg-card border border-border text-textSecondary font-semibold text-sm hover:text-white flex items-center gap-2"
-        >
-          <Edit3 className="w-4 h-4" /> {isEditing ? "Save Changes" : "Edit Profile"}
-        </button>
+        <button
+  onClick={() => {
+    console.log("Button clicked");
+
+    if (isEditing) {
+      handleSave();
+    } else {
+      setIsEditing(true);
+    }
+  }}
+  className="px-4 py-2 rounded-lg bg-blue-500 text-white"
+>
+  {isEditing ? "Save Changes" : "Edit Profile"}
+</button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -28,7 +85,7 @@ export default function MyProfile() {
             <img src="https://i.pravatar.cc/150?img=11" alt="John Doe" className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-accent/20"></div>
           </div>
-          <h2 className="text-xl font-bold text-white mb-1">John Doe</h2>
+          <h2 className="text-xl font-bold text-white mb-1">{profile.name}</h2>
           <div className="flex items-center gap-1.5 text-xs text-success bg-success/10 border border-success/20 px-3 py-1 rounded-full mb-6 font-semibold uppercase tracking-widest">
             <ShieldCheck className="w-3.5 h-3.5" /> Verified Citizen
           </div>
@@ -36,11 +93,11 @@ export default function MyProfile() {
           <div className="w-full space-y-3 mt-4 text-sm">
             <div className="flex items-center justify-between p-3 rounded-xl bg-[#12141d] border border-border">
                <span className="text-textSecondary flex items-center gap-2"><Mail className="w-4 h-4" /> Email</span>
-               <span className="text-white font-medium">john.doe@example.com</span>
+               <span className="text-white font-medium">{profile.email}</span>
             </div>
             <div className="flex items-center justify-between p-3 rounded-xl bg-[#12141d] border border-border">
                <span className="text-textSecondary flex items-center gap-2"><Phone className="w-4 h-4" /> Phone</span>
-               <span className="text-white font-medium">+1 (555) 019-2834</span>
+               <span className="text-white font-medium">{profile.phone}</span>
             </div>
           </div>
         </motion.div>
@@ -56,29 +113,61 @@ export default function MyProfile() {
                  <label className="text-xs text-textSecondary mb-2 block uppercase tracking-wider font-semibold">Location (State/District)</label>
                  <div className="relative">
                    <MapPin className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-textMuted" />
-                   <input disabled={!isEditing} type="text" defaultValue="Central District, Jharkhand" className="w-full bg-[#12141d] border border-border rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-accent disabled:opacity-70" />
+                  <input
+  name="location"
+  type="text"
+  value={profile.location}
+  onChange={(e) => {
+    console.log("Typing:", e.target.value);
+    handleChange(e);
+  }}
+  disabled={!isEditing}
+  className="w-full border rounded-xl py-3 pl-10 pr-4"
+  style={{
+    backgroundColor: isEditing ? "white" : "#0e0e0e",
+    color: "white",
+  }}
+/>
                  </div>
                </div>
                <div>
                  <label className="text-xs text-textSecondary mb-2 block uppercase tracking-wider font-semibold">Age / DOB</label>
                  <div className="relative">
                    <Calendar className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-textMuted" />
-                   <input disabled={!isEditing} type="text" defaultValue="28 (1996-05-14)" className="w-full bg-[#12141d] border border-border rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-accent disabled:opacity-70" />
-                 </div>
+                    <input
+                    name="dob"
+                    type="date"
+                    value={profile.dob}
+                    onChange={handleChange}
+                    disabled={!isEditing}
+                    className="w-full bg-[#12141d] border border-border rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-accent disabled:opacity-70"
+/>                </div>
                </div>
                <div>
                  <label className="text-xs text-textSecondary mb-2 block uppercase tracking-wider font-semibold">Profession / Industry</label>
                  <div className="relative">
                    <Briefcase className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-textMuted" />
-                   <input disabled={!isEditing} type="text" defaultValue="Tech Professional" className="w-full bg-[#12141d] border border-border rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-accent disabled:opacity-70" />
-                 </div>
+                   <input
+    name="profession"
+    type="text"
+    value={profile.profession}
+    onChange={handleChange}
+    disabled={!isEditing}
+    className="w-full bg-[#12141d] border border-border rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-accent disabled:opacity-70"
+/>
+               </div>
                </div>
                <div>
                  <label className="text-xs text-textSecondary mb-2 block uppercase tracking-wider font-semibold">Annual Income Range</label>
-                 <select disabled={!isEditing} className="w-full bg-[#12141d] border border-border rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:border-accent disabled:opacity-70">
-                   <option>$50,000 - $100,000</option>
-                   <option>$100,000 - $150,000</option>
-                 </select>
+                 <select
+                 name="income"
+                 value={profile.income}
+                 onChange={handleChange}
+                 disabled={!isEditing}
+                className="w-full bg-[#12141d] border border-border rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:border-accent disabled:opacity-70">
+                <option>$50,000 - $100,000</option>
+                <option>$100,000 - $150,000</option>
+                </select>
                </div>
             </div>
           </div>

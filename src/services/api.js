@@ -1,5 +1,8 @@
+import axios from "axios";
+
 const BASE_URL = "http://127.0.0.1:8000";
 
+// ---------------- Health Check ----------------
 export async function checkBackend() {
   const response = await fetch(`${BASE_URL}/health`);
 
@@ -10,6 +13,7 @@ export async function checkBackend() {
   return response.json();
 }
 
+// ---------------- Disaster Report ----------------
 export async function createReport(reportData) {
   const response = await fetch(`${BASE_URL}/reports/`, {
     method: "POST",
@@ -26,8 +30,8 @@ export async function createReport(reportData) {
   return response.json();
 }
 
+// ---------------- Upload Images ----------------
 export async function uploadImages(reportId, files) {
-
   const formData = new FormData();
 
   files.forEach((file) => {
@@ -49,8 +53,8 @@ export async function uploadImages(reportId, files) {
   return response.json();
 }
 
+// ---------------- AI Analysis ----------------
 export async function analyzeReport(reportId) {
-
   const response = await fetch(
     `${BASE_URL}/reports/${reportId}/analyze`,
     {
@@ -64,3 +68,13 @@ export async function analyzeReport(reportId) {
 
   return response.json();
 }
+
+// ---------------- AI Chat ----------------
+export const sendMessage = async (message, language = "en") => {
+  const response = await axios.post(`${BASE_URL}/chat`, {
+    message,
+    language,
+  });
+
+  return response.data;
+};
