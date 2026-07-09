@@ -1,13 +1,35 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { 
-  LayoutDashboard, MapPin, ShieldAlert, MessageSquare, TrendingUp, Archive as ArchiveIcon,
-  Settings, HelpCircle, Menu, X, FileText, Search, Users, User, Bookmark, History, 
-  Bell, Target, GitCompare, BarChart2, CheckSquare, Upload, LogOut, ChevronRight
-} from "lucide-react";
 import { useState } from "react";
 import clsx from "clsx";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../hooks/useAuth";
+import {
+  LayoutDashboard,
+  MapPin,
+  ShieldAlert,
+  MessageSquare,
+  TrendingUp,
+  Archive as ArchiveIcon,
+  Settings,
+  HelpCircle,
+  Menu,
+  X,
+  FileText,
+  Search,
+  Users,
+  User,
+  Bookmark,
+  History,
+  Bell,
+  Target,
+  GitCompare,
+  BarChart2,
+  CheckSquare,
+  Upload,
+  LogOut,
+  ChevronRight,
+  LifeBuoy
+} from "lucide-react";
 
 const navGroups = [
   {
@@ -25,14 +47,15 @@ const navGroups = [
     ]
   },
   {
-    title: "Gov Services",
-    items: [
-      { name: "Scheme Finder", path: "/dashboard/scheme", icon: Search },
-      { name: "Eligibility Checker", path: "/dashboard/eligibility", icon: CheckSquare },
-      { name: "Benefits Tracker", path: "/dashboard/benefits", icon: Target },
-      { name: "Townhall Events", path: "/dashboard/townhall", icon: Users },
-    ]
-  },
+  title: "Gov Services",
+  items: [
+    { name: "Scheme Finder", path: "/dashboard/scheme", icon: Search },
+    { name: "Eligibility Checker", path: "/dashboard/eligibility", icon: CheckSquare },
+    { name: "Benefits Tracker", path: "/dashboard/benefits", icon: Target },
+    { name: "Disaster Relief", path: "/dashboard/disaster-relief", icon: LifeBuoy },
+    { name: "Townhall Events", path: "/dashboard/townhall", icon: Users },
+  ]
+},
   {
     title: "My Account",
     items: [
