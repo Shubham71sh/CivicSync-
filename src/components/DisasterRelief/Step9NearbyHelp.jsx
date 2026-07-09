@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { MapPin, Phone, Navigation, Heart, ShieldAlert, Zap, Landmark, HeartHandshake } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -10,13 +10,13 @@ const iconMap = {
   "Electricity Office": Zap,
 };
 
-const services = [
-  { id: 1, type: "Relief Camp", name: "Patna Central High School Shelter", distance: "0.8 km", time: "3 min", phone: "+91 612 223412", capacity: "Active · 120 spaces", color: "#F4C95D" },
-  { id: 2, type: "Hospital", name: "Patna Medical College & Hospital", distance: "2.4 km", time: "9 min", phone: "+91 612 230084", capacity: "Emergency Open", color: "#EF4444" },
-  { id: 3, type: "Food Center", name: "Community Kitchen Ward 12", distance: "1.2 km", time: "5 min", phone: "+91 99345 88210", capacity: "Serving Meals Now", color: "#22C55E" },
-  { id: 4, type: "Police Station", name: "Kotwali Police Station Patna", distance: "1.5 km", time: "6 min", phone: "+91 612 222123", capacity: "Helpline Active", color: "#A5A8B5" },
-  { id: 5, type: "Electricity Office", name: "BSPDCL Substation Ward 14", distance: "3.1 km", time: "12 min", phone: "+91 612 289000", capacity: "Restoration in Progress", color: "#F59E0B" },
-];
+const defaultColor = {
+  "Relief Camp": "#F4C95D",
+  "Hospital": "#EF4444",
+  "Police Station": "#A5A8B5",
+  "Food Center": "#22C55E",
+  "Electricity Office": "#F59E0B",
+};
 
 // Positions for the mock map pins (percentage values)
 const PIN_POSITIONS = [
@@ -27,8 +27,15 @@ const PIN_POSITIONS = [
   { x: "72%", y: "65%" },
 ];
 
-export default function Step9NearbyHelp() {
-  const [selected, setSelected] = useState(services[0]);
+export default function Step9NearbyHelp({
+    services = [],
+}) {
+  const [selected, setSelected] = useState(
+  services.length > 0 ? services[0] : null
+);
+
+console.log("Services:", services);
+console.log("Selected:", selected);
 
   return (
     <div className="space-y-6">
@@ -48,7 +55,7 @@ export default function Step9NearbyHelp() {
         <div className="lg:col-span-3 space-y-3">
           {services.map((service) => {
             const Icon = iconMap[service.type] || Landmark;
-            const isSelected = selected.id === service.id;
+            const isSelected = selected?.id === service.id;
 
             return (
               <motion.div
@@ -70,9 +77,9 @@ export default function Step9NearbyHelp() {
                 <div
                   className="w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0 border"
                   style={{
-                    backgroundColor: `${service.color}12`,
-                    borderColor: `${service.color}20`,
-                    color: service.color,
+                    backgroundColor: `${defaultColor[service.type]}12`,
+                    borderColor: `${defaultColor[service.type]}20`,
+                    color: defaultColor[service.type],
                   }}
                 >
                   <Icon className="w-5 h-5 stroke-[1.5]" />
@@ -81,7 +88,7 @@ export default function Step9NearbyHelp() {
                 {/* Details */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[9px] font-bold uppercase tracking-widest font-poppins" style={{ color: service.color }}>
+                    <span className="text-[9px] font-bold uppercase tracking-widest font-poppins" style={{ color: defaultColor[service.type] }}>
                       {service.type}
                     </span>
                   </div>
@@ -117,7 +124,7 @@ export default function Step9NearbyHelp() {
               <MapPin className="w-3.5 h-3.5 text-[#F4C95D]" />
               Patna Ward 14 · Live GPS
             </span>
-            <span className="text-[9px] font-bold text-[#22C55E]">{selected.distance} away</span>
+            <span className="text-[9px] font-bold text-[#22C55E]">{selected?.distance} away</span>
           </div>
 
           {/* SVG Vector Map */}
@@ -157,7 +164,8 @@ export default function Step9NearbyHelp() {
             {/* Service Pins */}
             {services.map((service, idx) => {
               const pos = PIN_POSITIONS[idx];
-              const isActive = selected.id === service.id;
+              if (!pos) return null;
+              const isActive = selected?.id === service.id;
               const Icon = iconMap[service.type] || MapPin;
 
               return (
@@ -174,8 +182,8 @@ export default function Step9NearbyHelp() {
                       isActive ? "border-[#F4C95D]" : "border-[rgba(255,255,255,0.15)]"
                     }`}
                     style={{
-                      backgroundColor: isActive ? service.color : "#11131A",
-                      color: isActive ? "#0B0B12" : service.color,
+                      backgroundColor: isActive ? defaultColor[service.type] : "#11131A",
+                      color: isActive ? "#0B0B12" : defaultColor[service.type],
                     }}
                   >
                     <Icon className="w-3 h-3" />
@@ -193,7 +201,7 @@ export default function Step9NearbyHelp() {
           {/* Map Footer */}
           <div className="px-4 py-3 border-t border-[rgba(255,255,255,0.06)] bg-[#0B0B12]/40 flex items-center justify-between">
             <span className="text-[10px] text-white font-bold truncate max-w-[160px] font-inter">
-              {selected.name}
+              {selected?.name}
             </span>
             <button className="flex items-center gap-1 text-[#F4C95D] text-[9px] font-bold hover:underline shrink-0">
               <Navigation className="w-3 h-3" />

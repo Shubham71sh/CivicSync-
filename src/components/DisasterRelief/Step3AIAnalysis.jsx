@@ -29,9 +29,10 @@ export default function Step3AIAnalysis({
 
         const result = await analyzeReport(reportId);
 
-        console.log(result);
+        console.log("FULL RESULT");
+        console.log(JSON.stringify(result, null, 2));
 
-        setAnalysisData(result.analysis);
+        setAnalysisData(result);
 
         onComplete();
 

@@ -2,16 +2,15 @@ import React, { useState } from "react";
 import { Check, AlertTriangle, Upload, ChevronRight, FileText } from "lucide-react";
 import { motion } from "framer-motion";
 
-export default function Step7Documents({ onNext }) {
-  const [docList, setDocList] = useState([
-    { name: "Aadhaar Card copy", status: "verified", size: "1.2 MB" },
-    { name: "Land Possession certificate", status: "verified", size: "2.4 MB" },
-    { name: "AI Damaged Photo summary", status: "verified", size: "3.1 MB" },
-    { name: "Bank Passbook copy (Front page)", status: "missing", size: "--" },
-    { name: "Local officer damage certificate", status: "verified", size: "840 KB" }
-  ]);
+export default function Step7Documents({
+  documents = [],
+  onNext,
+}) {
 
-  const verifiedCount = docList.filter(d => d.status === "verified").length;
+  const [docList, setDocList] = useState(documents);
+  const verifiedCount = docList.filter(
+  d => d.status === "Verified"
+).length;
   const totalCount = docList.length;
   const completionPercentage = Math.round((verifiedCount / totalCount) * 100);
 
@@ -84,7 +83,7 @@ export default function Step7Documents({ onNext }) {
         <div className="md:col-span-3 space-y-3">
           <div className="space-y-2">
             {docList.map((doc, idx) => {
-              const isVerified = doc.status === "verified";
+              const isVerified = doc.status === "Verified";
               return (
                 <div
                   key={idx}
