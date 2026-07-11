@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
-import { Building2, Mail, Lock, ArrowRight, Github, User, MapPin } from "lucide-react";
+import { Building2, Mail, Lock, ArrowRight, User, MapPin } from "lucide-react";
 import { useState } from "react";
 
 export default function Signup() {

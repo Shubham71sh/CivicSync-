@@ -23,7 +23,7 @@ export default function Step8ClaimTimeline({
     label: item.title,
     desc: "",
     date: item.status,
-    completed: item.status === "Completed",
+    completed: item.status?.toLowerCase() === "completed",
   }));
 
   const completedCount = formattedTimeline.filter(

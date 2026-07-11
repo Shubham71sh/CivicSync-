@@ -1,6 +1,13 @@
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
-import { Building2, Mail, Lock, ArrowRight, Github, ShieldCheck } from "lucide-react";
+import {
+  Building2,
+  Mail,
+  Lock,
+  ArrowRight,
+  ShieldCheck,
+  Circle
+} from "lucide-react";
 import { useState } from "react";
 
 export default function Login() {
@@ -95,7 +102,7 @@ export default function Login() {
               Google
             </button>
             <button className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#171a21] border border-border hover:bg-cardHover transition-colors text-white font-semibold text-sm">
-              <Github className="w-5 h-5" /> GitHub
+              <Circle className="w-5 h-5" />
             </button>
           </div>
 
