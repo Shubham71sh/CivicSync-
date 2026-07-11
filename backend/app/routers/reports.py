@@ -1,11 +1,20 @@
-from fastapi import APIRouter
-from fastapi import UploadFile, File
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+from sqlalchemy.orm import Session
 from uuid import uuid4
 
 import os
 import shutil
 
 from app.schemas.report import ReportCreate
+from app.db.database import get_db
+from app.models.report import Report
+from app.models.image import ReportImage
+from app.models.analysis import Analysis
+from app.services.ai_service import analyze_disaster
+from app.services.eligibility_service import check_eligibility
+from app.models.document import Document
+from app.schemas.document import DocumentCreate
+from app.models.timeline import ClaimTimeline
 
 router = APIRouter(
     prefix="/reports",
@@ -13,28 +22,60 @@ router = APIRouter(
 )
 
 @router.post("/")
-def create_report(report: ReportCreate):
+def create_report(
+    report: ReportCreate,
+    db: Session = Depends(get_db)
+):
 
     report_id = f"REP-{str(uuid4())[:8]}"
 
+    new_report = Report(
+        report_id=report_id,
+        disaster_type=report.disaster_type,
+        location=report.location,
+        description=report.description
+    )
+
+    db.add(new_report)
+    db.commit()
+    db.refresh(new_report)
+
     return {
-        "success": True,
-        "report_id": report_id,
-        "message": "Report created successfully",
-        "data": report.model_dump()
+    "success": True,
+    "report_id": new_report.report_id,
+    "message": "Report saved successfully",
+    "data": {
+        "id": new_report.id,
+        "report_id": new_report.report_id,
+        "disaster_type": new_report.disaster_type,
+        "location": new_report.location,
+        "description": new_report.description,
+        "status": new_report.status,
+        "created_at": new_report.created_at
     }
+}
 
 @router.post("/{report_id}/upload")
 def upload_images(
     report_id: str,
-    files: list[UploadFile] = File(...)
+    files: list[UploadFile] = File(...),
+    db: Session = Depends(get_db)
 ):
 
     upload_dir = "uploads"
-
     os.makedirs(upload_dir, exist_ok=True)
 
     uploaded_files = []
+
+    report = db.query(Report).filter(
+        Report.report_id == report_id
+    ).first()
+
+    if not report:
+        raise HTTPException(
+            status_code=404,
+            detail="Report not found"
+        )
 
     for file in files:
 
@@ -45,6 +86,15 @@ def upload_images(
 
         uploaded_files.append(file.filename)
 
+        new_image = ReportImage(
+            report_id=report_id,
+            image_path=file_path
+        )
+
+        db.add(new_image)
+
+    db.commit()  
+
     return {
         "success": True,
         "report_id": report_id,
@@ -52,208 +102,283 @@ def upload_images(
     }
 
 @router.post("/{report_id}/analyze")
-def analyze_report(report_id: str):
+def analyze_report(
+    report_id: str,
+    db: Session = Depends(get_db)
+):
+
+    report = db.query(Report).filter(
+        Report.report_id == report_id
+    ).first()
+
+    if not report:
+        raise HTTPException(
+            status_code=404,
+            detail="Report not found"
+        )
+    
+    ai_result = analyze_disaster(report.disaster_type)
+
+    print(ai_result)
+
+    analysis = Analysis(
+    report_id=report_id,
+    damage_percent=ai_result["damage_percent"],
+    severity=ai_result["severity"],
+    house_damage=ai_result["house_damage"],
+    crop_damage=ai_result["crop_damage"],
+    vehicle_damage=ai_result["vehicle_damage"],
+    estimated_loss=ai_result["estimated_loss"],
+    ai_confidence=ai_result["ai_confidence"]
+)
+
+    db.add(analysis)
+    db.commit()
+    db.refresh(analysis)
 
     return {
         "success": True,
         "report_id": report_id,
-
         "analysis": {
-            "damage_percent": 82,
-            "severity": "High",
-            "house_damage": 90,
-            "crop_damage": 75,
-            "vehicle_damage": 20,
-            "ai_confidence": 94,
-            "estimated_loss": 450000
-        },
-        "eligibility": [
-    {
-        "label": "Disaster officially declared",
-        "desc": "Municipal state of emergency active for Patna Zone 14",
-        "status": "Passed"
-    },
-    {
-        "label": "GPS matched",
-        "desc": "Evidence geotags overlay within declared incident perimeter coordinates",
-        "status": "Passed"
-    },
-    {
-        "label": "Aadhaar verified",
-        "desc": "Identity and digital signature validated",
-        "status": "Passed"
-    },
-    {
-        "label": "Income eligible",
-        "desc": "Household income below threshold",
-        "status": "Passed"
-    },
-    {
-        "label": "Damage threshold crossed",
-        "desc": "Damage exceeds 40%",
-        "status": "Passed"
+            "damage_percent": analysis.damage_percent,
+            "severity": analysis.severity,
+            "house_damage": analysis.house_damage,
+            "crop_damage": analysis.crop_damage,
+            "vehicle_damage": analysis.vehicle_damage,
+            "estimated_loss": analysis.estimated_loss,
+            "ai_confidence": analysis.ai_confidence
+        }
     }
-],
 
-        "images": [
-            {
-                "id": 1,
-                "label": "Front View",
-                "url": "https://images.unsplash.com/photo-1547683905-f686c993aae5?w=1200",
-                "detections": [
-                    {
-                        "id": "d1",
-                        "label": "Wall Crack",
-                        "confidence": 92,
-                        "severity": "High",
-                        "x": "15%",
-                        "y": "35%",
-                        "w": "30%",
-                        "h": "25%"
-                    }
-                ]
-            },
-            {
-                "id": 2,
-                "label": "Roof",
-                "url": "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=1200",
-                "detections": [
-                    {
-                        "id": "d2",
-                        "label": "Roof Damage",
-                        "confidence": 95,
-                        "severity": "Severe",
-                        "x": "20%",
-                        "y": "15%",
-                        "w": "40%",
-                        "h": "30%"
-                    }
-                ]
-            }
-        ],
+@router.post("/{report_id}/eligibility")
+def eligibility_checker(
+    report_id: str,
+    db: Session = Depends(get_db)
+):
 
-        "schemes": [
-            {
-                "id": "S1",
-                "name": "State Flood Relief Scheme",
-                "amount": "₹10,000",
-                "status": "Eligible",
-                "guide": "Flood damage above 40%",
-                "approvalTime": "3-5 Days"
-            },
-            {
-                "id": "S2",
-                "name": "PMAY House Repair",
-                "amount": "₹50,000",
-                "status": "Eligible",
-                "guide": "House damage above 70%",
-                "approvalTime": "7-14 Days"
-            },
-            {
-                "id": "S3",
-                "name": "Electricity Bill Waiver",
-                "amount": "50% Waiver",
-                "status": "Eligible",
-                "guide": "Power connection affected",
-                "approvalTime": "2-3 Days"
-            },
-            {
-                "id": "S4",
-                "name": "Crop Compensation",
-                "amount": "₹8,500/acre",
-                "status": "Ineligible",
-                "guide": "Land records not found",
-                "approvalTime": "-"
-            }
-        ],
+    analysis = db.query(Analysis).filter(
+        Analysis.report_id == report_id
+    ).first()
 
+    if not analysis:
+        raise HTTPException(
+            status_code=404,
+            detail="Analysis not found"
+        )
+
+    result = check_eligibility(
+        analysis.damage_percent
+    )
+
+    from app.models.eligibility import Eligibility
+
+    eligibility = Eligibility(
+        report_id=report_id,
+        is_eligible=result["is_eligible"],
+        scheme_name=result["scheme_name"],
+        reason=result["reason"]
+    )
+
+    db.add(eligibility)
+    db.commit()
+    db.refresh(eligibility)
+
+    return {
+        "success": True,
         "eligibility": {
-            "aadhaar": True,
-            "residence": True,
-            "bank_account": True,
-            "income_certificate": False,
-            "land_record": False
-        },
+            "is_eligible": eligibility.is_eligible,
+            "scheme_name": eligibility.scheme_name,
+            "reason": eligibility.reason
+        }
+    }
 
+
+@router.get("/")
+def get_all_reports(db: Session = Depends(get_db)):
+
+    reports = db.query(Report).all()
+
+    return {
+        "success": True,
+        "count": len(reports),
+        "data": reports
+    }
+
+@router.get("/{report_id}")
+def get_report(
+    report_id: str,
+    db: Session = Depends(get_db)
+):
+
+    report = db.query(Report).filter(
+        Report.report_id == report_id
+    ).first()
+
+    if not report:
+        raise HTTPException(
+            status_code=404,
+            detail="Report not found"
+        )
+
+    return {
+        "id": report.id,
+        "report_id": report.report_id,
+        "disaster_type": report.disaster_type,
+        "location": report.location,
+        "description": report.description,
+        "status": report.status,
+        "created_at": report.created_at
+    }
+
+@router.post("/{report_id}/documents")
+def save_documents(
+    report_id: str,
+    db: Session = Depends(get_db)
+):
+
+    report = db.query(Report).filter(
+        Report.report_id == report_id
+    ).first()
+
+    if not report:
+        raise HTTPException(
+            status_code=404,
+            detail="Report not found"
+        )
+
+    docs = [
+        {
+            "name": "Aadhaar Card",
+            "status": "Verified",
+            "size": "2.1 MB"
+        },
+        {
+            "name": "House Damage Photos",
+            "status": "Verified",
+            "size": "5.4 MB"
+        },
+        {
+            "name": "Bank Passbook",
+            "status": "Pending",
+            "size": ""
+        }
+    ]
+
+    for d in docs:
+
+        document = Document(
+            report_id=report_id,
+            name=d["name"],
+            status=d["status"],
+            size=d["size"]
+        )
+
+        db.add(document)
+
+    db.commit()
+
+    return {
+        "success": True,
+        "documents": docs
+    }
+
+@router.get("/{report_id}/documents")
+def get_documents(
+    report_id: str,
+    db: Session = Depends(get_db)
+):
+
+    documents = db.query(Document).filter(
+        Document.report_id == report_id
+    ).all()
+
+    return {
+        "success": True,
         "documents": [
             {
-                "name": "Aadhaar Card",
-                "status": "Verified"
-            },
-            {
-                "name": "Bank Passbook",
-                "status": "Verified"
-            },
-            {
-                "name": "Land Record",
-                "status": "Missing"
-            },
-            {
-                "name": "Income Certificate",
-                "status": "Missing"
+                "name": d.name,
+                "status": d.status,
+                "size": d.size
             }
-        ],
+            for d in documents
+        ]
+    }
 
+@router.post("/{report_id}/timeline")
+def save_timeline(
+    report_id: str,
+    db: Session = Depends(get_db)
+):
+
+    report = db.query(Report).filter(
+        Report.report_id == report_id
+    ).first()
+
+    if not report:
+        raise HTTPException(
+            status_code=404,
+            detail="Report not found"
+        )
+
+    timeline_data = [
+        {
+            "title": "Application Submitted",
+            "description": "Your relief application has been submitted.",
+            "status": "Completed"
+        },
+        {
+            "title": "AI Damage Assessment",
+            "description": "AI analyzed uploaded evidence.",
+            "status": "Completed"
+        },
+        {
+            "title": "Officer Verification",
+            "description": "Pending government verification.",
+            "status": "Pending"
+        },
+        {
+            "title": "Relief Approved",
+            "description": "Funds will be transferred.",
+            "status": "Pending"
+        }
+    ]
+
+    for item in timeline_data:
+
+        timeline = ClaimTimeline(
+            report_id=report_id,
+            title=item["title"],
+            description=item["description"],
+            status=item["status"]
+        )
+
+        db.add(timeline)
+
+    db.commit()
+
+    return {
+        "success": True,
+        "timeline": timeline_data
+    }
+
+@router.get("/{report_id}/timeline")
+def get_timeline(
+    report_id: str,
+    db: Session = Depends(get_db)
+):
+
+    timeline = db.query(ClaimTimeline).filter(
+        ClaimTimeline.report_id == report_id
+    ).all()
+
+    return {
+        "success": True,
         "timeline": [
             {
-                "title": "Application Submitted",
-                "status": "Completed"
-            },
-            {
-                "title": "Officer Verification",
-                "status": "Pending"
-            },
-            {
-                "title": "Relief Approval",
-                "status": "Pending"
+                "title": t.title,
+                "description": t.description,
+                "status": t.status
             }
-        ],
-
-        "nearby_help": [
-            {
-                "id": 1,
-                "type": "Relief Camp",
-                "name": "Patna Relief Camp",
-                "distance": "1.5 km",
-                "time": "5 min",
-                "phone": "+91 9876543210",
-                "capacity": "120 Spaces"
-            },
-            {
-                "id": 2,
-                "type": "Hospital",
-                "name": "Patna Medical College",
-                "distance": "2.1 km",
-                "time": "8 min",
-                "phone": "+91 9876500001",
-                "capacity": "Emergency Open"
-            },
-            {
-                "id": 3,
-                "type": "Food Center",
-                "name": "Community Kitchen",
-                "distance": "1.8 km",
-                "time": "6 min",
-                "phone": "+91 9876500002",
-                "capacity": "Meals Available"
-            },
-            {
-                "id": 4,
-                "type": "Police Station",
-                "name": "Kotwali Police Station",
-                "distance": "3 km",
-                "time": "10 min",
-                "phone": "+91 9876500003",
-                "capacity": "24x7 Available"
-            },
-            {
-                "id": 5,
-                "type": "Electricity Office",
-                "name": "Electricity Office",
-                "distance": "4 km",
-                "time": "12 min",
-                "phone": "+91 9876500004",
-                "capacity": "Open"
-            }
+            for t in timeline
         ]
     }

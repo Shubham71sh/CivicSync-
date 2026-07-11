@@ -33,6 +33,11 @@ export default function Step9NearbyHelp({
   const [selected, setSelected] = useState(
   services.length > 0 ? services[0] : null
 );
+useEffect(() => {
+  if (services.length > 0) {
+    setSelected(services[0]);
+  }
+}, [services]);
 
 console.log("Services:", services);
 console.log("Selected:", selected);
@@ -98,14 +103,16 @@ console.log("Selected:", selected);
                       <Phone className="w-3 h-3" />
                       {service.phone}
                     </span>
-                    <span className="text-[#22C55E]">{service.capacity}</span>
+                    <span className="text-[#22C55E]">
+  {service.capacity || "Available"}
+</span>
                   </div>
                 </div>
 
                 {/* Distance + Time */}
                 <div className="text-right shrink-0">
                   <span className="text-sm font-bold text-white font-space-grotesk block">{service.distance}</span>
-                  <span className="text-[9px] text-[#A5A8B5] font-medium">{service.time} drive</span>
+                  <span className="text-[9px] text-[#A5A8B5] font-medium">{service.time || "--"} drive</span>
                   <button className="mt-2 flex items-center gap-1 text-[#F4C95D] text-[9px] font-bold hover:underline ml-auto">
                     <Navigation className="w-2.5 h-2.5" />
                     Route
