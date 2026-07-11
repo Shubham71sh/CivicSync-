@@ -64,11 +64,30 @@ class BillController:
                 detail=f"AI Summarization failed: {str(e)}"
             )
 
+        # Store in MongoDB using update_one with upsert=True matching by billNumber
+        db = get_db()
+        bill_number = analysis.get("billNumber", "GEN-2026")
+        
+        # Check if bill with this billNumber already exists to keep its _id
+        existing_bill = await db.bills.find_one({"billNumber": bill_number})
+        
+        if existing_bill:
+            bill_id = existing_bill["_id"]
+            # Clean up old file if it exists and path is different
+            old_file_path = existing_bill.get("filePath")
+            if old_file_path and old_file_path != file_path and os.path.exists(old_file_path):
+                try:
+                    os.remove(old_file_path)
+                except Exception:
+                    pass
+        else:
+            bill_id = unique_id
+
         # Build final bill document
         bill_doc = {
-            "_id": unique_id,
+            "_id": bill_id,
             "title": analysis.get("title", file.filename.replace(".pdf", "").title()),
-            "billNumber": analysis.get("billNumber", "GEN-2026"),
+            "billNumber": bill_number,
             "status": analysis.get("status", "pending"),
             "uploadedAt": datetime.utcnow().isoformat() + "Z", # Match standard ISO format used by JS
             "summary": analysis.get("summary", ""),
@@ -81,23 +100,30 @@ class BillController:
             "userId": current_user.get("_id", "demo_user_001")
         }
 
-        # Store in MongoDB
-        db = get_db()
+        # Prepare update payload excluding _id in $set to prevent immutable _id field errors in MongoDB
+        update_fields = {k: v for k, v in bill_doc.items() if k != "_id"}
+
         try:
-            await db.bills.insert_one(bill_doc)
+            await db.bills.update_one(
+                {"billNumber": bill_number},
+                {
+                    "$set": update_fields,
+                    "$setOnInsert": {"_id": bill_id}
+                },
+                upsert=True
+            )
         except Exception as e:
             if os.path.exists(file_path):
                 os.remove(file_path)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Database insertion failed: {str(e)}"
+                detail=f"Database update failed: {str(e)}"
             )
 
-        # Form response model (renaming _id to id happens in Schema layer or controller)
-        # Note: mapping _id back in returned JSON to match what frontend needs
+        # Form response model mapping _id back in returned JSON to match what frontend needs
         return {
-            "bill": {**bill_doc, "_id": unique_id},
-            "analysisId": unique_id
+            "bill": bill_doc,
+            "analysisId": bill_id
         }
 
     @staticmethod
