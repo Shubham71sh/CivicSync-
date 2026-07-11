@@ -32,6 +32,9 @@ export default function Step3AIAnalysis({
         console.log("FULL RESULT");
         console.log(JSON.stringify(result, null, 2));
 
+        console.log("Analysis Data");
+console.log(result);
+
         setAnalysisData(result);
 
         onComplete();

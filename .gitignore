@@ -37,3 +37,13 @@ backend/app/__pycache__/
 
 # Build
 build/
+
+# Uploads
+backend/uploads/
+
+# Text files (optional)
+backend_structure.txt
+structure.txt
+
+# Python virtual env
+.venv/

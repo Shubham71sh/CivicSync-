@@ -6,6 +6,8 @@ export default function Step7Documents({
   documents = [],
   onNext,
 }) {
+  console.log("Documents Data");
+console.log(JSON.stringify(documents, null, 2));
 
   const [docList, setDocList] = useState(documents);
   const verifiedCount = docList.filter(
@@ -17,7 +19,7 @@ export default function Step7Documents({
   const handleUploadMissing = () => {
     // Simulate uploading the missing document
     setDocList(prev => 
-      prev.map(d => d.name.includes("Passbook") ? { ...d, status: "verified", size: "1.5 MB" } : d)
+      prev.map(d => d.name.includes("Passbook") ? { ...d, status: "Verified", size: "1.5 MB" } : d)
     );
   };
 

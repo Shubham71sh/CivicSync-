@@ -21,17 +21,17 @@ export default function Step4DamageReport({
   const metrics = [
   {
     name: "House Damage",
-    value: `${data.house_damage}%`,
+    value: `${data.house_damage ?? 0}%`,
     status: data.house_damage >= 70 ? "Severe" : "Normal",
   },
   {
     name: "Crop Damage",
-    value: `${data.crop_damage}%`,
+    value: `${data.crop_damage ?? 0}%`,
     status: data.crop_damage >= 70 ? "Severe" : "Normal",
   },
   {
     name: "Vehicle Damage",
-    value: `${data.vehicle_damage}%`,
+    value: `${data.vehicle_damage ?? 0}%`,
     status: data.vehicle_damage >= 70 ? "Severe" : "Normal",
   },
   {
@@ -121,7 +121,7 @@ export default function Step4DamageReport({
           </div>
           <div className="flex items-baseline justify-between mt-4">
             <span className="text-xl font-bold text-white font-space-grotesk">
-              {data.damage_percent}%
+              {data.damage_percent ?? 0}%
             </span>
             <span className="text-[8px] text-[#EF4444] font-bold bg-[#EF4444]/10 px-2 py-0.5 rounded-full uppercase tracking-wider font-poppins">
               Severe

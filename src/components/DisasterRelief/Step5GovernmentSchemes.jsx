@@ -2,6 +2,11 @@ import React, { useState } from "react";
 import { CheckCircle, XCircle, ChevronRight, Award, Clock } from "lucide-react";
 
 export default function Step5GovernmentSchemes({ schemes, onNext }) {
+  console.log(
+  "Schemes received:",
+  JSON.stringify(schemes, null, 2)
+);
+
   const [appliedSchemes, setAppliedSchemes] = useState({});
 
   const handleApply = (id) => {
@@ -32,8 +37,12 @@ export default function Step5GovernmentSchemes({ schemes, onNext }) {
 
       {/* Horizontal Cards Grid */}
       <div className="space-y-4">
-        {schemes.slice(0, 4).map((scheme) => {
-          const isEligible = scheme.status === "Eligible";
+      <p className="text-red-500">
+  Total Schemes: {schemes.length}
+</p>
+        {(schemes || []).slice(0, 4).map((scheme) => {
+          const isEligible =
+  scheme.status?.toLowerCase() === "eligible";
           const applyState = appliedSchemes[scheme.id];
 
           return (

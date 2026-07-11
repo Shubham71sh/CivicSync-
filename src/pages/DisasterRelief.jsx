@@ -14,13 +14,24 @@ import Step7Documents from "../components/DisasterRelief/Step7Documents";
 import Step8ClaimTimeline from "../components/DisasterRelief/Step8ClaimTimeline";
 import Step9NearbyHelp from "../components/DisasterRelief/Step9NearbyHelp";
 import FloatingAIChat from "../components/DisasterRelief/FloatingAIChat";
-import { checkBackend, createReport } from "../services/api";
 
 import {
   mockDamageData,
   mockGalleryImages,
   mockSchemes,
 } from "../components/DisasterRelief/reliefMockData";
+
+import {
+  checkBackend,
+  createReport,
+  checkEligibility,
+  saveDocuments,
+  getDocuments,
+  saveTimeline,
+  getTimeline,
+  saveNearbyHelp,
+  getNearbyHelp
+} from "../services/api";
 
 const STEP_LABELS = [
   "Select Disaster",
@@ -47,6 +58,11 @@ export default function DisasterRelief() {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [reportId, setReportId] = useState(null);
   const [analysisData, setAnalysisData] = useState(null);
+  const [eligibilityData, setEligibilityData] = useState(null);
+  const [documents, setDocuments] = useState([]);
+  const [timelineData, setTimelineData] = useState([]);
+  const [nearbyHelpData, setNearbyHelpData] = useState([]);
+
   useEffect(() => {
   async function testConnection() {
     try {
@@ -62,6 +78,10 @@ export default function DisasterRelief() {
   testConnection();
 }, []);
 
+useEffect(() => {
+  console.log("Current Step:", currentStep);
+}, [currentStep]);
+
   const goNext = useCallback(() => {
     setCurrentStep((s) => Math.min(s + 1, STEP_LABELS.length));
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -71,6 +91,86 @@ export default function DisasterRelief() {
     setCurrentStep((s) => Math.max(s - 1, 1));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
+
+  const handleEligibility = async () => {
+  try {
+    const result = await checkEligibility(reportId);
+
+    console.log("Eligibility Result");
+    console.log(result);
+
+    setEligibilityData(result.eligibility);
+
+    goNext();
+  } catch (error) {
+    console.error(error);
+    alert("Eligibility check failed");
+  }
+};
+
+
+const handleDocuments = async () => {
+  try {
+
+    await saveDocuments(reportId);
+
+    const result = await getDocuments(reportId);
+
+    console.log("Documents");
+    console.log(result);
+
+    setDocuments(result.documents);
+
+    goNext();
+
+  } catch (error) {
+
+    console.error(error);
+
+    alert("Document loading failed");
+
+  }
+};
+
+const handleTimeline = async () => {
+  try {
+
+    await saveTimeline(reportId);
+
+    const result = await getTimeline(reportId);
+
+    console.log("Timeline");
+    console.log(result);
+
+    setTimelineData(result.timeline);
+
+    goNext();
+
+  } catch (error) {
+    console.error(error);
+    alert("Timeline failed");
+  }
+};
+
+const handleNearbyHelp = async () => {
+  try {
+
+    await saveNearbyHelp(reportId);
+
+    const result = await getNearbyHelp(reportId);
+
+    console.log("Nearby Help");
+    console.log(result);
+
+    setNearbyHelpData(result.services);
+
+    goNext();
+
+  } catch (error) {
+    console.error(error);
+    alert("Nearby Help failed");
+  }
+};
 
   const jumpTo = (step) => {
     if (step < currentStep) {
@@ -90,6 +190,9 @@ export default function DisasterRelief() {
       location: "Location will come later",
       description: "Created from Step 1",
     });
+
+    console.log("FULL RESPONSE");
+    console.log(JSON.stringify(response, null, 2));
 
     console.log("Response from backend:", response);
     console.log("Report ID:", response.report_id);
@@ -214,32 +317,32 @@ export default function DisasterRelief() {
             )}
             {currentStep === 5 && (
               <Step5GovernmentSchemes
-                schemes={analysisData?.schemes || []}
-                onNext={goNext}
-              />
+    schemes={analysisData?.schemes || mockSchemes}
+    onNext={handleEligibility}
+/>
             )}
             {currentStep === 6 && (
               <Step6Eligibility
-                eligibility={analysisData?.eligibility}
-                onNext={goNext}
-              />
+    eligibility={eligibilityData}
+    onNext={handleDocuments}
+/>
             )}
             {currentStep === 7 && (
               <Step7Documents
-                documents={analysisData?.documents || []}
-                onNext={goNext}
-               />
+    documents={documents}
+    onNext={handleTimeline}
+/>
             )}
             {currentStep === 8 && (
               <Step8ClaimTimeline
-                  timeline={analysisData?.timeline || []}
-                  onNext={goNext}
-              />
+    timeline={timelineData}
+    onNext={handleNearbyHelp}
+/>
             )}
             {currentStep === 9 && (
                 <Step9NearbyHelp
-                    services={analysisData?.nearby_help || []}
-                />
+    services={nearbyHelpData}
+/>
             )}
           </motion.div>
         </AnimatePresence>

@@ -1,4 +1,13 @@
+from app.db.database import Base, engine
 from fastapi import FastAPI
+from app.routers import reports
+from app.models.report import Report
+from app.models.image import ReportImage
+from app.models.analysis import Analysis
+from app.models.eligibility import Eligibility
+from app.models.document import Document
+from app.models.timeline import ClaimTimeline
+
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -33,6 +42,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+Base.metadata.create_all(bind=engine)
+
+app.include_router(reports.router)
 
 # -----------------------------
 # Chat Model
