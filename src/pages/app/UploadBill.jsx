@@ -11,6 +11,7 @@ export default function UploadBill() {
   const [file, setFile] = useState(null);
   const [uploadState, setUploadState] = useState("idle"); // idle, uploading, done, error
   const [error, setError] = useState("");
+  const [uploadResult, setUploadResult] = useState(null);
 
   const handleDrag = useCallback((e) => {
     e.preventDefault();
@@ -39,17 +40,17 @@ export default function UploadBill() {
       // Build FormData — backend expects: POST /api/bills/upload (multipart)
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("fileName", file.name);
 
       // Calls billService.uploadBill → POST /api/bills/upload
-      await uploadBill(formData);
-
+      const result = await uploadBill(formData);
+      setUploadResult(result);
       setUploadState("done");
+      
       // Redirect to bill history after short delay
-      setTimeout(() => navigate("/dashboard/bills"), 1500);
+      setTimeout(() => navigate("/dashboard/bills"), 2000);
     } catch (err) {
       console.error("[UploadBill] Upload failed:", err);
-      setError("Upload failed. Please try again.");
+      setError(err.message || "Upload failed. Please try again.");
       setUploadState("error");
     }
   };
@@ -59,6 +60,7 @@ export default function UploadBill() {
     setFile(null);
     setUploadState("idle");
     setError("");
+    setUploadResult(null);
   };
 
   return (
@@ -144,7 +146,15 @@ export default function UploadBill() {
               {uploadState === "done" && (
                 <div className="flex flex-col items-center gap-3">
                   <CheckCircle2 className="w-8 h-8 text-success" />
-                  <span className="text-sm font-bold text-success uppercase tracking-widest">Analysis Complete — Redirecting...</span>
+                  <div className="text-center">
+                    <span className="text-sm font-bold text-success uppercase tracking-widest block">Analysis Complete</span>
+                    {uploadResult?.bill?.title && (
+                      <p className="text-xs text-textSecondary mt-1">✓ {uploadResult.bill.title}</p>
+                    )}
+                    {uploadResult?.bill?.impactScore && (
+                      <p className="text-xs text-accent mt-1">Impact Score: {uploadResult.bill.impactScore}%</p>
+                    )}
+                  </div>
                 </div>
               )}
               {uploadState === "error" && (
