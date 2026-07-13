@@ -20,6 +20,7 @@ import Contact from "./pages/public/Contact";
 import Dashboard from "./pages/app/Dashboard";
 import UploadBill from "./pages/app/UploadBill";
 import BillHistory from "./pages/app/BillHistory";
+import BillDetails from "./pages/app/BillDetails";
 import AISummary from "./pages/app/AISummary";
 import CompareBills from "./pages/app/CompareBills";
 import AIChat from "./pages/app/AIChat";
@@ -95,6 +96,7 @@ function App() {
                 <Route path="/dashboard/upload" element={<UploadBill />} />
                 <Route path="/dashboard/disaster-relief" element={<DisasterRelief />} />
                 <Route path="/dashboard/bills" element={<BillHistory />} />
+                <Route path="/dashboard/bills/:id" element={<BillDetails />} />
                 <Route path="/dashboard/ai-summary" element={<AISummary />} />
                 <Route path="/dashboard/compare" element={<CompareBills />} />
 

@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FileText, Upload, Search, Filter, Trash2, Eye, Clock, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import clsx from "clsx";
-import { getBills } from "../../services/billService";
+import { getBills, deleteBill } from "../../services/billService";
 import { SkeletonList } from "../../components/ui/Skeleton";
 import EmptyState from "../../components/ui/EmptyState";
 
@@ -18,22 +18,74 @@ export default function BillHistory() {
   const navigate = useNavigate();
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
+
+  // Fetch bills with current filters
+  const fetchBills = async (params = {}) => {
+    setLoading(true);
+    setError("");
+    try {
+      const filters = {
+        page: 1,
+        limit: 10,
+        search: search || undefined,
+        status: filterStatus !== "all" ? filterStatus : undefined,
+        ...params
+      };
+      
+      const result = await getBills(filters);
+      setBills(result.bills || []);
+      setPagination({
+        page: result.page || 1,
+        pages: result.pages || 1,
+        total: result.total || 0
+      });
+    } catch (err) {
+      console.error("[BillHistory] Failed to fetch bills:", err);
+      setError(err.message || "Failed to load bills. Please try again.");
+      setBills([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Backend: GET /api/bills
   useEffect(() => {
-    getBills()
-      .then(({ bills }) => setBills(bills))
-      .catch((err) => console.error("[BillHistory] Failed to fetch bills:", err))
-      .finally(() => setLoading(false));
+    fetchBills();
   }, []);
 
-  const filtered = bills.filter((b) => {
-    const matchesSearch = b.title.toLowerCase().includes(search.toLowerCase()) || b.billNumber.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = filterStatus === "all" || b.status === filterStatus;
-    return matchesSearch && matchesStatus;
-  });
+  // Refetch when filters change
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      if (!loading) fetchBills();
+    }, 300);
+    return () => clearTimeout(debounceTimer);
+  }, [search, filterStatus]);
+
+  // Handle bill deletion
+  const handleDeleteBill = async (billId, e) => {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this bill?")) return;
+
+    try {
+      await deleteBill(billId);
+      // Refresh the bills list
+      fetchBills();
+    } catch (err) {
+      console.error("[BillHistory] Delete failed:", err);
+      setError(err.message || "Failed to delete bill. Please try again.");
+    }
+  };
+
+  // Handle viewing bill details
+  const handleViewBill = (billId) => {
+    navigate(`/dashboard/bills/${billId}`);
+  };
+
+  const filtered = bills;
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -86,6 +138,16 @@ export default function BillHistory() {
       {/* Content */}
       {loading ? (
         <SkeletonList rows={4} />
+      ) : error ? (
+        <div className="text-center p-6 text-danger bg-danger/5 border border-danger/20 rounded-2xl">
+          <p className="mb-2">{error}</p>
+          <button 
+            onClick={() => fetchBills()} 
+            className="px-4 py-2 text-sm bg-danger/10 hover:bg-danger/20 rounded-lg transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={FileText}
@@ -136,10 +198,16 @@ export default function BillHistory() {
                         <span className="text-xs font-semibold text-accent">Impact: {bill.impactScore}%</span>
                       </div>
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="p-1.5 rounded-lg hover:bg-[#2a2e3d] text-textSecondary hover:text-white transition-colors">
+                        <button 
+                          onClick={() => handleViewBill(bill._id)}
+                          className="p-1.5 rounded-lg hover:bg-[#2a2e3d] text-textSecondary hover:text-white transition-colors"
+                        >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button className="p-1.5 rounded-lg hover:bg-danger/10 text-textSecondary hover:text-danger transition-colors">
+                        <button 
+                          onClick={(e) => handleDeleteBill(bill._id, e)}
+                          className="p-1.5 rounded-lg hover:bg-danger/10 text-textSecondary hover:text-danger transition-colors"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
