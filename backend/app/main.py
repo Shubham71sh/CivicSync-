@@ -1,39 +1,59 @@
-from app.db.database import Base, engine
+
+
+
+# pyrefly: ignore [missing-import]
 from fastapi import FastAPI
-from app.routers import reports
-from app.models.report import Report
-from app.models.image import ReportImage
-from app.models.analysis import Analysis
-from app.models.eligibility import Eligibility
-from app.models.document import Document
-from app.models.timeline import ClaimTimeline
-
+# pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
+# pyrefly: ignore [missing-import]
 from pydantic import BaseModel
-from dotenv import load_dotenv
-from google import genai
-import os
+from contextlib import asynccontextmanager
+import logging
+
+from app.config.settings import settings
+from app.config.database import get_db, close_db
+from app.config.gemini import get_gemini_client
+
+# Import transparency engine routers
+from app.api.routes import bills, compare, fake_news
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("uvicorn.error")
 
 # -----------------------------
-# Load Environment Variables
+# Lifespan Handler (DB Setup)
 # -----------------------------
-load_dotenv()
-
-api_key = os.getenv("GEMINI_API_KEY")
-client = None
-
-if api_key:
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Establish MongoDB connection on startup
+    logger.info("Initializing database connection...")
     try:
-        client = genai.Client(api_key=api_key)
+        get_db()
     except Exception as e:
-        print(f"Error initializing Gemini client: {e}")
-else:
-    print("WARNING: GEMINI_API_KEY is not set. Please add it to your .env file.")
+        logger.error(f"Could not connect to database on startup: {e}")
+    
+    yield
+    
+    # Close MongoDB connection on shutdown
+    logger.info("Closing database connection...")
+    close_db()
+
 
 # -----------------------------
 # FastAPI App
 # -----------------------------
+
 app = FastAPI()
+
+
+app = FastAPI(
+    title="CivicSync AI Backend",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# Allow React Frontend and credentials
 
 app.add_middleware(
     CORSMiddleware,
@@ -42,21 +62,43 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-Base.metadata.create_all(bind=engine)
 
-app.include_router(reports.router)
 
 # -----------------------------
 # Chat Model
 # -----------------------------
+
+
+# -----------------------------
+# Register Routers
+# -----------------------------
+# Register with /api prefix as requested
+app.include_router(bills.router, prefix="/api")
+app.include_router(compare.router, prefix="/api")
+app.include_router(fake_news.router, prefix="/api")
+
+# Register without prefix for fallback compatibility with some frontend layouts
+app.include_router(bills.router)
+app.include_router(compare.router)
+app.include_router(fake_news.router)
+
+
+# -----------------------------
+# AI Chat and Profile Endpoints
+# (Preserved from existing backend to retain system integrations)
+# -----------------------------
+
+
 class ChatRequest(BaseModel):
     message: str
     language: str = "en"
 
 
+
 # -----------------------------
 # Profile Model
 # -----------------------------
+
 class Profile(BaseModel):
     name: str
     email: str
@@ -67,9 +109,13 @@ class Profile(BaseModel):
     income: str
 
 
+
 # -----------------------------
 # Temporary Profile Data
 # -----------------------------
+
+# Temporary In-Memory Profile Data (Synchronized with frontend profile service)
+
 profile_data = {
     "name": "John Doe",
     "email": "john.doe@example.com",
@@ -81,11 +127,17 @@ profile_data = {
 }
 
 
+
 # -----------------------------
 # AI Chat Endpoint
 # -----------------------------
 @app.post("/chat")
 async def chat(data: ChatRequest):
+
+@app.post("/chat")
+async def chat(data: ChatRequest):
+    client = get_gemini_client()
+
     if not client:
         return {
             "response": "Error: GEMINI_API_KEY is not set or invalid. Please check your backend configuration."
@@ -134,18 +186,25 @@ User Question:
             "response": response.text
         }
     except Exception as e:
+
         print(f"Error calling Gemini API: {e}")
+
+        logger.error(f"Error calling Gemini API: {e}")
+
         return {
             "response": f"Error communicating with Gemini: {str(e)}"
         }
 
 
+
 # -----------------------------
 # Get Profile
 # -----------------------------
+
 @app.get("/profile")
 async def get_profile():
     return profile_data
+
 
 
 # -----------------------------
@@ -162,4 +221,29 @@ async def update_profile(profile: Profile):
     return {
         "message": "Profile updated successfully",
         "profile": profile_data
+    }
+
+@app.put("/profile")
+async def update_profile(profile: Profile):
+    global profile_data
+    profile_data = profile.model_dump()
+    logger.info(f"Updated Profile: {profile_data}")
+    return {
+        "message": "Profile updated successfully",
+        "profile": profile_data
+    }
+
+@app.get("/")
+def root():
+    return {
+        "message": "🚀 CivicSync Backend Running Successfully",
+        "module": "Module 3 (Transparency Engine) Active"
+    }
+
+@app.get("/health")
+def health():
+    return {
+        "status": "healthy",
+        "server": "running"
+
     }
