@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
 # FastAPI App
 # -----------------------------
 
-app = FastAPI()
+
 
 
 app = FastAPI(
@@ -131,8 +131,7 @@ profile_data = {
 # -----------------------------
 # AI Chat Endpoint
 # -----------------------------
-@app.post("/chat")
-async def chat(data: ChatRequest):
+
 
 @app.post("/chat")
 async def chat(data: ChatRequest):
@@ -189,7 +188,7 @@ User Question:
 
         print(f"Error calling Gemini API: {e}")
 
-        logger.error(f"Error calling Gemini API: {e}")
+        
 
         return {
             "response": f"Error communicating with Gemini: {str(e)}"
@@ -210,18 +209,7 @@ async def get_profile():
 # -----------------------------
 # Update Profile
 # -----------------------------
-@app.put("/profile")
-async def update_profile(profile: Profile):
-    global profile_data
 
-    profile_data = profile.model_dump()
-
-    print("Updated Profile:", profile_data)
-
-    return {
-        "message": "Profile updated successfully",
-        "profile": profile_data
-    }
 
 @app.put("/profile")
 async def update_profile(profile: Profile):
