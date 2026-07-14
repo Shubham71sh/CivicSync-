@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, Send, Bot, User, Loader2, Sparkles, Globe, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { MessageSquare, Send, Bot, User, Loader2, Globe, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { motion } from "framer-motion";
 import clsx from "clsx";
 import { chatQuery } from "../../services/aiService";
-import { useAuth } from "../../hooks/useAuth";
 
 const INITIAL_MESSAGE = {
   id: 1,
@@ -22,7 +21,6 @@ const LANGUAGES = [
 ];
 
 export default function AIChat() {
-  const { user } = useAuth();
   const [messages, setMessages] = useState([INITIAL_MESSAGE]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -33,8 +31,12 @@ export default function AIChat() {
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
 
-  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  useEffect(scrollToBottom, [messages, isTyping]);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isTyping]);
 
   // Clean up synthesis and warm up voice cache
   useEffect(() => {
@@ -181,7 +183,7 @@ export default function AIChat() {
       const botMsgId = Date.now() + 1;
       setMessages((prev) => [...prev, { id: botMsgId, type: "bot", text: response }]);
       handleSpeak(botMsgId, response);
-    } catch (err) {
+    } catch {
       const errorMsgId = Date.now() + 1;
       const errorText = "Sorry, I couldn't process that. Please try again.";
       setMessages((prev) => [...prev, { id: errorMsgId, type: "bot", text: errorText }]);
