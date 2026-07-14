@@ -1,10 +1,10 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { Suspense, lazy } from "react";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import LandingLayout from "./layouts/LandingLayout";
 import DashboardLayout from "./layouts/DashboardLayout";
-import LoadingSpinner from "./components/ui/LoadingSpinner";
+import DisasterRelief from "./pages/DisasterRelief";
+
 import ErrorBoundary from "./components/ui/ErrorBoundary";
 import { CheckSquare, Target, History, Bookmark, BarChart2, Search } from "lucide-react";
 
@@ -20,6 +20,7 @@ import Contact from "./pages/public/Contact";
 import Dashboard from "./pages/app/Dashboard";
 import UploadBill from "./pages/app/UploadBill";
 import BillHistory from "./pages/app/BillHistory";
+import BillDetails from "./pages/app/BillDetails";
 import AISummary from "./pages/app/AISummary";
 import CompareBills from "./pages/app/CompareBills";
 import AIChat from "./pages/app/AIChat";
@@ -81,6 +82,10 @@ function App() {
             {/* ── Auth Routes (no layout wrapper) ── */}
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route
+                  path="/disaster-relief"
+                  element={<DisasterRelief />}
+              />
 
             {/* ── Protected Dashboard Routes ── */}
             <Route element={<ProtectedRoute />}>
@@ -89,7 +94,9 @@ function App() {
                 {/* Core */}
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/dashboard/upload" element={<UploadBill />} />
+                <Route path="/dashboard/disaster-relief" element={<DisasterRelief />} />
                 <Route path="/dashboard/bills" element={<BillHistory />} />
+                <Route path="/dashboard/bills/:id" element={<BillDetails />} />
                 <Route path="/dashboard/ai-summary" element={<AISummary />} />
                 <Route path="/dashboard/compare" element={<CompareBills />} />
 

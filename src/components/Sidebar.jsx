@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { 
   LayoutDashboard, MapPin, ShieldAlert, MessageSquare, TrendingUp, Archive as ArchiveIcon,
   Settings, HelpCircle, Menu, X, FileText, Search, Users, User, Bookmark, History, 
-  Bell, FileCheck, Target, GitCompare, BarChart2, CheckSquare
+  Bell, FileCheck, Target, GitCompare, BarChart2, CheckSquare, AlertTriangle
 } from "lucide-react";
 import { useState } from "react";
 import clsx from "clsx";
@@ -19,6 +19,8 @@ const navGroups = [
       { name: "Civic GPS", path: "/gps", icon: MapPin },
       { name: "Impact Simulator", path: "/impact", icon: TrendingUp },
       { name: "AI Chat", path: "/chat", icon: MessageSquare },
+      { name: "Disaster Relief", path: "/disaster-relief", icon: AlertTriangle },
+      { name: "Emergency Navigator", path: "/emergency", icon: AlertTriangle },
     ]
   },
   {
