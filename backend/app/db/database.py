@@ -5,6 +5,9 @@ import os
 
 load_dotenv()
 
+print("DATABASE_URL =", os.getenv("DATABASE_URL"))
+print("GEMINI_API_KEY =", os.getenv("GEMINI_API_KEY"))
+
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 engine = create_engine(DATABASE_URL)

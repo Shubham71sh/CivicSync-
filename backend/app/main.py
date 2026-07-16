@@ -7,6 +7,8 @@ from app.models.analysis import Analysis
 from app.models.eligibility import Eligibility
 from app.models.document import Document
 from app.models.timeline import ClaimTimeline
+from app.models.officer import Officer
+from app.models.nearby_help import NearbyHelp
 
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
