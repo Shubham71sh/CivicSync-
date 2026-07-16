@@ -178,6 +178,22 @@ export async function getNearbyHelp(reportId) {
   return response.json();
 }
 
+// ---------------- Government Schemes ----------------
+
+export async function getSchemes(disaster, damage, state) {
+
+    const response = await fetch(
+        `${BASE_URL}/schemes?disaster=${disaster}&damage=${damage}&state=${state}`
+    );
+
+    const data = await response.json();
+
+    console.log("SCHEME API RESPONSE");
+    console.log(JSON.stringify(data,null,2));
+
+    return data;
+}
+
 // ---------------- AI Chat ----------------
 export const sendMessage = async (message, language = "en") => {
   const response = await axios.post(`${BASE_URL}/chat`, {
