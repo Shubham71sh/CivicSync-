@@ -1,7 +1,7 @@
 import json
 import logging
-from app.config.gemini import get_gemini_client
 from typing import Dict, Any
+from app.config.gemini import get_gemini_client
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -39,7 +39,7 @@ def generate_bill_analysis(text: str, file_name: str) -> Dict[str, Any]:
 
     try:
         response = client.models.generate_content(
-            model="gemini-flash-lite-latest",
+            model="gemini-2.5-flash",
             contents=prompt
         )
         
