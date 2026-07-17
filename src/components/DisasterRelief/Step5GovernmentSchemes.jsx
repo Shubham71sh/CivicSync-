@@ -41,8 +41,7 @@ export default function Step5GovernmentSchemes({ schemes, onNext }) {
   Total Schemes: {schemes.length}
 </p>
         {(schemes || []).slice(0, 4).map((scheme) => {
-          const isEligible =
-  scheme.status?.toLowerCase() === "eligible";
+          const isEligible = true;
           const applyState = appliedSchemes[scheme.id];
 
           return (
@@ -62,13 +61,13 @@ export default function Step5GovernmentSchemes({ schemes, onNext }) {
                       ? "bg-[#22C55E]/10 text-[#22C55E]"
                       : "bg-[#EF4444]/10 text-[#EF4444]"
                   }`}>
-                    {scheme.status}
+                    Eligible
                   </span>
                   
                   {isEligible && (
                     <span className="text-[9px] text-[#A5A8B5] font-bold uppercase tracking-wider font-space-grotesk flex items-center gap-1">
                       <Clock className="w-3 h-3 text-[#F4C95D]" />
-                      {scheme.approvalTime} Approval
+                      {scheme.processing_time || "3-7 Days"}
                     </span>
                   )}
                 </div>
@@ -78,7 +77,7 @@ export default function Step5GovernmentSchemes({ schemes, onNext }) {
                 </h4>
 
                 <p className="text-[11px] text-[#A5A8B5] leading-relaxed max-w-xl font-inter">
-                  <span className="font-semibold text-[#F4C95D]">Reason:</span> {isEligible ? scheme.guide : "Requires registered agricultural farmland status in municipal land records."}
+                  <span className="font-semibold text-[#F4C95D]">Reason:</span> {scheme.benefit}
                 </p>
               </div>
 

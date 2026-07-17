@@ -2,21 +2,74 @@ import React, { useState, useEffect, useRef } from "react";
 import { Loader2, Check, Sparkles, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { analyzeReport } from "../../services/api";
+import { flushSync } from "react-dom";
 
-const ANALYSIS_STEPS = [
-  "Detecting Disaster",
-  "Reading GPS Metadata",
-  "Estimating Water Level",
-  "Detecting Structural Damage",
-  "Matching Government Database",
-  "Calculating Estimated Loss",
-];
+const analysisStepsMap = {
+  flood: [
+    "Detecting Flood",
+    "Reading GPS Metadata",
+    "Estimating Water Level",
+    "Detecting Structural Damage",
+    "Matching Government Schemes",
+    "Calculating Estimated Loss"
+  ],
+
+  earthquake: [
+    "Detecting Earthquake",
+    "Reading Seismic Damage",
+    "Analyzing Building Cracks",
+    "Detecting Structural Collapse",
+    "Matching Government Schemes",
+    "Calculating Estimated Loss"
+  ],
+
+  fire: [
+    "Detecting Fire",
+    "Estimating Burn Area",
+    "Analyzing Smoke Damage",
+    "Detecting Structural Damage",
+    "Matching Government Schemes",
+    "Calculating Estimated Loss"
+  ],
+
+  cyclone: [
+    "Detecting Cyclone",
+    "Estimating Wind Damage",
+    "Analyzing Roof Damage",
+    "Detecting Structural Damage",
+    "Matching Government Schemes",
+    "Calculating Estimated Loss"
+  ],
+
+  landslide: [
+    "Detecting Landslide",
+    "Estimating Soil Movement",
+    "Analyzing Road Damage",
+    "Detecting Structural Damage",
+    "Matching Government Schemes",
+    "Calculating Estimated Loss"
+  ],
+
+  rain: [
+    "Detecting Heavy Rain",
+    "Analyzing Waterlogging",
+    "Estimating Flood Risk",
+    "Detecting Property Damage",
+    "Matching Government Schemes",
+    "Calculating Estimated Loss"
+  ]
+};
+
 
 export default function Step3AIAnalysis({
     reportId,
+    selectedDisaster,
     setAnalysisData,
     onComplete
 }) {
+
+  const analysisSteps =
+  analysisStepsMap[selectedDisaster] || analysisStepsMap.flood;
   const [completedSteps, setCompletedSteps] = useState([]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -35,9 +88,11 @@ export default function Step3AIAnalysis({
         console.log("Analysis Data");
 console.log(result);
 
-        setAnalysisData(result);
+flushSync(() => {
+    setAnalysisData(result.analysis);
+});
 
-        onComplete();
+onComplete();
 
     } catch (error) {
 
@@ -62,16 +117,16 @@ console.log(result);
     let idx = 0;
     const stepTimer = setInterval(() => {
       const current = idx;
-      setCompletedSteps((prev) => [...prev, ANALYSIS_STEPS[current]]);
+      setCompletedSteps((prev) => [...prev, analysisSteps[current]]);
       idx += 1;
 
-      if (idx < ANALYSIS_STEPS.length) {
+      if (idx < analysisSteps.length) {
         setActiveIdx(idx);
       } else {
         clearInterval(stepTimer);
         // Mark done & auto-advance after 1.2s
         setIsDone(true);
-        setActiveIdx(ANALYSIS_STEPS.length);
+        setActiveIdx(analysisSteps.length);
         if (!hasCalledComplete.current) {
           hasCalledComplete.current = true;
           setTimeout(() => runAnalysis(), 1200);
@@ -139,7 +194,7 @@ console.log(result);
           </h4>
 
           <div className="grid gap-2.5 text-xs">
-            {ANALYSIS_STEPS.map((step, idx) => {
+            {analysisSteps.map((step, idx) => {
               const done = completedSteps.includes(step);
               const active = idx === activeIdx && !isDone;
 
