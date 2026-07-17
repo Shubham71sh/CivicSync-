@@ -15,6 +15,7 @@ from app.models.document import Document
 from app.models.timeline import ClaimTimeline
 from app.models.officer import Officer
 from app.models.nearby_help import NearbyHelp
+from routes.schemes import router as schemes_router
 
 from fastapi.middleware.cors import CORSMiddleware
 # pyrefly: ignore [missing-import]
@@ -94,6 +95,7 @@ app.include_router(bills.router)
 app.include_router(compare.router)
 app.include_router(fake_news.router)
 app.include_router(reports.router)
+app.include_router(schemes_router)
 
 
 # -----------------------------
