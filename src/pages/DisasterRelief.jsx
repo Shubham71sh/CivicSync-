@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Building2, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
+import { flushSync } from "react-dom";
 
 import StepperProgress from "../components/DisasterRelief/StepperProgress";
 import Step1DisasterSelect from "../components/DisasterRelief/Step1DisasterSelect";
@@ -15,11 +16,11 @@ import Step8ClaimTimeline from "../components/DisasterRelief/Step8ClaimTimeline"
 import Step9NearbyHelp from "../components/DisasterRelief/Step9NearbyHelp";
 import FloatingAIChat from "../components/DisasterRelief/FloatingAIChat";
 
-import {
-  mockDamageData,
-  mockGalleryImages,
-  mockSchemes,
-} from "../components/DisasterRelief/reliefMockData";
+// import {
+//   mockDamageData,
+//   mockGalleryImages,
+//   mockSchemes,
+// } from "../components/DisasterRelief/reliefMockData";
 
 import {
   checkBackend,
@@ -30,7 +31,8 @@ import {
   saveTimeline,
   getTimeline,
   saveNearbyHelp,
-  getNearbyHelp
+  getNearbyHelp,
+  getSchemes          // <-- Add this
 } from "../services/api";
 
 const STEP_LABELS = [
@@ -61,7 +63,9 @@ export default function DisasterRelief() {
   const [eligibilityData, setEligibilityData] = useState(null);
   const [documents, setDocuments] = useState([]);
   const [timelineData, setTimelineData] = useState([]);
+  const [officerData, setOfficerData] = useState(null);
   const [nearbyHelpData, setNearbyHelpData] = useState([]);
+  const [governmentSchemes, setGovernmentSchemes] = useState([]);
 
   useEffect(() => {
   async function testConnection() {
@@ -143,6 +147,15 @@ const handleTimeline = async () => {
     console.log(result);
 
     setTimelineData(result.timeline);
+    setOfficerData({
+  name: "Rajesh Kumar",
+  role: "Block Development Officer",
+  zone: "Ward 14",
+  phone: "9876543210",
+  inspectionDate: "16 Jul 2026",
+  inspectionTime: "10:00 AM - 12:00 PM",
+  note: "Please keep all original documents ready."
+});
 
     goNext();
 
@@ -171,6 +184,42 @@ const handleNearbyHelp = async () => {
     alert("Nearby Help failed");
   }
 };
+
+const handleGovernmentSchemes = async () => {
+  console.log("FUNCTION CALLED");
+
+  try {
+
+    console.log("Selected Disaster:", selectedDisaster);
+    console.log("Analysis:", analysisData);
+    console.log("damage =", analysisData?.analysis?.damage_percent);
+
+    if (!analysisData) {
+    console.log("No analysis");
+    return;
+}
+
+    const result = await getSchemes(
+    selectedDisaster,
+    analysisData.damage_percent,
+    "Punjab"
+);
+
+    console.log("API RESULT");
+    console.log(result);
+
+    flushSync(() => {
+    setGovernmentSchemes(result.schemes || []);
+});
+
+goNext();
+
+  } catch(err) {
+    console.log("ERROR");
+    console.log(err);
+  }
+}
+
 
   const jumpTo = (step) => {
     if (step < currentStep) {
@@ -205,6 +254,42 @@ const handleNearbyHelp = async () => {
     alert("Failed to create report.");
   }
 };
+
+console.log("Government Schemes State:", governmentSchemes);
+
+const firstScheme = governmentSchemes?.[0];
+
+const reliefAmount = firstScheme?.amount || "Not Available";
+
+const matchedSchemes = governmentSchemes?.length || 0;
+
+const aiConfidence = analysisData?.ai_confidence || "--";
+
+const severity = analysisData?.severity || "--";
+
+const damagePercent = analysisData?.damage_percent || "--";
+
+const inspectionDate =
+  officerData?.inspectionDate ||
+  "Pending";
+
+const officerName =
+  officerData?.name ||
+  "Officer will be assigned";
+
+const inspectionTime =
+  officerData?.inspectionTime ||
+  "Pending";
+
+const officerNote =
+  officerData?.note ||
+  "No additional instructions.";
+
+const selectedScheme =
+  eligibilityData?.scheme_name ||
+  firstScheme?.name ||
+  "Scheme Pending";
+
 
   return (
     <div className="min-h-screen bg-[#0B0B12] text-white font-inter antialiased">
@@ -303,30 +388,32 @@ const handleNearbyHelp = async () => {
             )}
             {currentStep === 3 && (
               <Step3AIAnalysis
-                  reportId={reportId}
-                  setAnalysisData={setAnalysisData}
-                  onComplete={goNext}
-              />
+    reportId={reportId}
+    selectedDisaster={selectedDisaster}
+    setAnalysisData={setAnalysisData}
+    onComplete={goNext}
+/>
             )}
             {currentStep === 4 && (
               <Step4DamageReport
-                  data={analysisData?.analysis}
-                  images={analysisData?.images || []}
-                  onNext={goNext}
-              />
+    data={analysisData}
+    images={[]}
+    onNext={handleGovernmentSchemes}
+/>
             )}
             {currentStep === 5 && (
               <Step5GovernmentSchemes
-    schemes={analysisData?.schemes || mockSchemes}
+    schemes={governmentSchemes}
     onNext={handleEligibility}
 />
             )}
             {currentStep === 6 && (
-              <Step6Eligibility
-    eligibility={eligibilityData}
-    onNext={handleDocuments}
-/>
-            )}
+  <Step6Eligibility
+      eligibility={eligibilityData}
+      analysis={analysisData}
+      onNext={handleDocuments}
+  />
+)}
             {currentStep === 7 && (
               <Step7Documents
     documents={documents}
@@ -336,41 +423,37 @@ const handleNearbyHelp = async () => {
             {currentStep === 8 && (
               <Step8ClaimTimeline
     timeline={timelineData}
+    officer={officerData}
     onNext={handleNearbyHelp}
 />
             )}
             {currentStep === 9 && (
-                <Step9NearbyHelp
-    services={nearbyHelpData}
-/>
-            )}
+    <Step9NearbyHelp
+        services={nearbyHelpData}
+    />
+)}
           </motion.div>
         </AnimatePresence>
 
-        {/* ── Bottom Navigation ─────────────────────────────────── */}
-        {currentStep !== 3 && currentStep !== 9 && (
-          <div className="flex items-center justify-between pt-2">
-            <button
-              onClick={goPrev}
-              disabled={currentStep === 1}
-              className="px-5 py-2.5 rounded-[14px] border border-[rgba(255,255,255,0.08)] bg-[#11131A] hover:bg-[#171923] disabled:opacity-30 disabled:cursor-not-allowed text-xs font-bold text-[#A5A8B5] transition-all flex items-center gap-1.5"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Previous Step
-            </button>
+        {/* Bottom Navigation */}
+{currentStep < 4 && currentStep !== 3 && (
+  <div className="flex items-center justify-between pt-2">
 
-            <button
-              onClick={goNext}
-              disabled={currentStep === STEP_LABELS.length}
-              className="px-6 py-2.5 rounded-[14px] bg-[#F4C95D] hover:bg-[#FFD978] text-[#0B0B12] font-bold text-xs transition-all flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed shadow-[0_4px_20px_rgba(244,201,93,0.15)] active:scale-95"
-            >
-              <span>
-                {currentStep === STEP_LABELS.length ? "All Done" : `Continue to Step ${currentStep + 1}`}
-              </span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        )}
+    <button
+      onClick={goPrev}
+    >
+      Previous Step
+    </button>
+
+    <button
+      onClick={goNext}
+    >
+      Continue to Step...
+    </button>
+
+  </div>
+
+)}
 
         {/* Final completion card on Step 9 */}
         {currentStep === 9 && (
@@ -391,13 +474,13 @@ const handleNearbyHelp = async () => {
                 <div className="text-center sm:text-left">
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#22C55E]/10 border border-[#22C55E]/20 text-[#22C55E] text-[9px] font-bold uppercase tracking-widest mb-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse" />
-                    Claim Successfully Filed
+                    Application Submitted
                   </div>
                   <h3 className="text-lg font-extrabold text-white font-poppins leading-tight">
-                    AI Assessment Complete
+                    Relief Claim Successfully Submitted
                   </h3>
                   <p className="text-xs text-[#A5A8B5] font-inter mt-1 max-w-lg">
-                    Your full disaster profile has been generated and submitted to the Bihar State Relief Department. A case reference has been created under Ward 14.
+                    {`Your disaster relief application has been successfully generated and submitted. Your Report ID is ${reportId}. The matched government scheme and AI assessment have been saved for further verification.`}
                   </p>
                 </div>
               </div>
@@ -405,10 +488,10 @@ const handleNearbyHelp = async () => {
               {/* Stats Grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { label: "Relief Approved", value: "₹60,000", color: "#F4C95D" },
-                  { label: "Schemes Matched", value: "3 of 4", color: "#22C55E" },
-                  { label: "AI Confidence", value: "94%", color: "#A5A8B5" },
-                  { label: "Inspection Date", value: "Jul 8", color: "#F59E0B" },
+                  { label: "Relief Approved", value: reliefAmount, color: "#F4C95D" },
+                  { label: "Schemes Matched", value: `${matchedSchemes} Schemes`, color: "#22C55E" },
+                  { label: "AI Confidence", value: `${aiConfidence}%`, color: "#A5A8B5" },
+                  { label: "Inspection Date", value: inspectionDate, color: "#F59E0B" },
                 ].map((stat) => (
                   <div
                     key={stat.label}
@@ -429,12 +512,13 @@ const handleNearbyHelp = async () => {
                 {[
                   "Disaster type identified & AI model loaded",
                   "Evidence photos uploaded & geo-verified",
-                  "Structural damage assessed at 82% severity",
-                  "3 government schemes applied for",
-                  "All 5 eligibility criteria cleared",
-                  "4 of 5 documents verified in vault",
-                  "Block Officer Rajesh Kumar assigned",
-                  "Physical inspection scheduled for July 8",
+                  `Structural damage assessed at ${damagePercent}% (${severity})`,
+`${matchedSchemes} government schemes matched`,
+eligibilityData?.is_eligible
+  ? "Eligibility successfully verified"
+  : "Eligibility pending verification",
+`${officerName} assigned`,
+`Inspection scheduled for ${inspectionDate}`,
                 ].map((item) => (
                   <div key={item} className="flex items-center gap-2.5 text-xs text-[#A5A8B5] font-inter">
                     <div className="w-4 h-4 rounded-full bg-[#22C55E]/10 border border-[#22C55E]/20 flex items-center justify-center shrink-0">
@@ -455,10 +539,11 @@ const handleNearbyHelp = async () => {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-white font-poppins">Action Required — July 8, 2025</p>
+                  <p className="text-xs font-bold text-white font-poppins">Action Required — {inspectionDate}</p>
                   <p className="text-[10px] text-[#A5A8B5] font-inter mt-0.5 leading-relaxed">
-                    Be present at your Ward 14 property between <span className="text-white font-semibold">10:00 AM – 12:00 PM</span> for physical inspection by BDO Rajesh Kumar. Carry your Aadhaar card and land ownership documents.
+                    Be present at your Ward 14 property between <span className="text-white font-semibold">{inspectionTime}</span> for physical inspection by BDO {officerName}. Carry your Aadhaar card and land ownership documents. 
                   </p>
+                  <p className="text-[10px] text-[#F4C95D] mt-2">{officerNote}</p>
                 </div>
               </div>
 

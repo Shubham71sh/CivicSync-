@@ -4,18 +4,10 @@ import { motion } from "framer-motion";
 
 
 // The currently active officer details
-const ASSIGNED_OFFICER = {
-  name: "Rajesh Kumar",
-  role: "Block Development Officer (BDO)",
-  zone: "Patna Zone 14 — Bihar State Relief Dept.",
-  phone: "+91 612 245 9801",
-  inspectionDate: "July 8, 2025",
-  inspectionTime: "10:00 AM – 12:00 PM",
-  note: "Please ensure you are present at the property address during inspection. Keep Aadhaar card and land documents ready.",
-};
 
 export default function Step8ClaimTimeline({
   timeline = [],
+  officer,
   onNext,
 }) {
   const formattedTimeline = timeline.map((item, index) => ({
@@ -30,22 +22,74 @@ export default function Step8ClaimTimeline({
   (s) => s.completed
 ).length;
 
+const totalStages = formattedTimeline.length;
+
+const progress = totalStages
+  ? Math.round((completedCount / totalStages) * 100)
+  : 0;
+
+const currentStage = Math.min(completedCount + 1, totalStages);
+
+const remainingStages = Math.max(totalStages - completedCount, 0);
+
+const officerData = officer;
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="relative overflow-hidden rounded-[26px] bg-gradient-to-br from-[#171923] to-[#0F1118] border border-[rgba(255,255,255,0.08)] p-7">
+
+    <div className="absolute -right-20 -top-20 w-56 h-56 rounded-full bg-[#F4C95D]/10 blur-3xl"></div>
+
+    <div className="flex justify-between items-start relative">
+
         <div>
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider font-poppins">
-            Claim Recovery Timeline
-          </h3>
-          <p className="text-xs text-[#A5A8B5] font-inter">
-            Live status tracker for your disaster relief claim pipeline
-          </p>
+
+            <span className="px-3 py-1 rounded-full bg-[#F4C95D]/10 border border-[#F4C95D]/20 text-[#F4C95D] text-[10px] font-bold tracking-widest uppercase">
+                LIVE CLAIM STATUS
+            </span>
+
+            <h2 className="mt-5 text-3xl font-bold text-white">
+                Relief Claim Processing
+            </h2>
+
+            <p className="mt-3 text-sm text-[#A5A8B5] max-w-xl">
+                Your disaster relief request is currently being processed by the government.
+                CivicSync AI continuously tracks every approval stage and keeps you updated in real time.
+            </p>
+
         </div>
-        <span className="text-[10px] text-[#F4C95D] bg-[#F4C95D]/10 border border-[#F4C95D]/20 px-2 py-0.5 rounded-full font-bold">
-          Step 8 of 9
-        </span>
-      </div>
+
+        <div className="grid grid-cols-2 gap-4">
+
+            <div className="rounded-2xl bg-[#11131A] border border-white/10 px-5 py-4 text-center">
+
+                <p className="text-[10px] uppercase text-[#A5A8B5]">
+                    Progress
+                </p>
+
+                <h2 className="text-3xl font-bold text-[#F4C95D] mt-2">
+                    {progress}%
+                </h2>
+
+            </div>
+
+            <div className="rounded-2xl bg-[#11131A] border border-white/10 px-5 py-4 text-center">
+
+                <p className="text-[10px] uppercase text-[#A5A8B5]">
+                    ETA
+                </p>
+
+                <h2 className="text-3xl font-bold text-green-400 mt-2">
+    {remainingStages} Steps Left
+</h2>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
 
       {/* Progress Summary Bar */}
       <div className="p-4 bg-[#11131A] rounded-[20px] border border-[rgba(255,255,255,0.08)] flex items-center gap-4">
@@ -54,19 +98,19 @@ export default function Step8ClaimTimeline({
             Overall Progress
           </span>
           <p className="text-xs text-white font-semibold font-inter mt-0.5">
-            {completedCount} of {formattedTimeline.length} stages done
+            {completedCount} of {totalStages} stages done
           </p>
         </div>
         <div className="flex-1 h-1.5 bg-[#171923] rounded-full overflow-hidden">
           <motion.div
             className="h-full bg-gradient-to-r from-[#F4C95D] to-[#FFD978]"
             initial={{ width: 0 }}
-            animate={{ width: `${(completedCount / formattedTimeline.length) * 100}%` }}
+            animate={{ width: `${progress}%` }}
             transition={{ duration: 1, delay: 0.2 }}
           />
         </div>
         <span className="text-sm font-bold text-[#F4C95D] font-space-grotesk shrink-0">
-          {Math.round((completedCount / formattedTimeline.length) * 100)}%
+          {progress}%
         </span>
       </div>
 
@@ -79,9 +123,8 @@ export default function Step8ClaimTimeline({
           {formattedTimeline.map((stage, idx) => {
             const isCompleted = stage.completed;
             const isNext =
-              !isCompleted &&
-              idx > 0 &&
-              formattedTimeline[idx - 1].completed;
+  idx === completedCount &&
+  !stage.completed;
 
             return (
               <div
@@ -148,7 +191,7 @@ export default function Step8ClaimTimeline({
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-5 rounded-full bg-[#F4C95D]" />
             <span className="text-[10px] font-bold text-[#F4C95D] uppercase tracking-widest font-poppins">
-              Currently Active · Stage 3 of 6
+              Currently Active · Stage {currentStage} of {totalStages}
             </span>
           </div>
 
@@ -166,24 +209,24 @@ export default function Step8ClaimTimeline({
                   </div>
                   <div>
                     <h4 className="text-sm font-bold text-white font-poppins leading-none">
-                      {ASSIGNED_OFFICER.name}
+                      {officerData.name}
                     </h4>
                     <p className="text-[10px] text-[#A5A8B5] font-inter mt-0.5">
-                      {ASSIGNED_OFFICER.role}
+                      {officerData.role}
                     </p>
                     <p className="text-[9px] text-[#A5A8B5]/70 font-inter">
-                      {ASSIGNED_OFFICER.zone}
+                      {officerData.zone}
                     </p>
                   </div>
                 </div>
               </div>
 
               <a
-                href={`tel:${ASSIGNED_OFFICER.phone}`}
+                href={`tel:${officerData.phone}`}
                 className="inline-flex items-center gap-2 px-3 py-2 rounded-[12px] bg-[#171923] border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.2)] transition-all text-xs font-bold text-white"
               >
                 <Phone className="w-3.5 h-3.5 text-[#F4C95D]" />
-                {ASSIGNED_OFFICER.phone}
+                {officerData.phone}
               </a>
             </div>
 
@@ -197,10 +240,10 @@ export default function Step8ClaimTimeline({
                 <Calendar className="w-4 h-4 text-[#F59E0B] shrink-0 mt-0.5" />
                 <div>
                   <p className="text-xs font-bold text-white font-poppins">
-                    {ASSIGNED_OFFICER.inspectionDate}
+                    {officerData.inspectionDate}
                   </p>
                   <p className="text-[10px] text-[#A5A8B5] font-inter">
-                    {ASSIGNED_OFFICER.inspectionTime}
+                    {officerData.inspectionTime}
                   </p>
                 </div>
               </div>
@@ -208,7 +251,7 @@ export default function Step8ClaimTimeline({
               <div className="flex items-start gap-2.5 p-3 rounded-[14px] bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.05)]">
                 <AlertCircle className="w-3.5 h-3.5 text-[#A5A8B5] shrink-0 mt-0.5" />
                 <p className="text-[9px] text-[#A5A8B5] leading-relaxed font-inter">
-                  {ASSIGNED_OFFICER.note}
+                  {officerData.note}
                 </p>
               </div>
             </div>

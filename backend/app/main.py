@@ -3,7 +3,19 @@
 
 # pyrefly: ignore [missing-import]
 from fastapi import FastAPI
+
 # pyrefly: ignore [missing-import]
+
+from app.routers import reports
+from app.models.report import Report
+from app.models.image import ReportImage
+from app.models.analysis import Analysis
+from app.models.eligibility import Eligibility
+from app.models.document import Document
+from app.models.timeline import ClaimTimeline
+from app.models.officer import Officer
+from app.models.nearby_help import NearbyHelp
+
 from fastapi.middleware.cors import CORSMiddleware
 # pyrefly: ignore [missing-import]
 from pydantic import BaseModel
@@ -81,6 +93,7 @@ app.include_router(fake_news.router, prefix="/api")
 app.include_router(bills.router)
 app.include_router(compare.router)
 app.include_router(fake_news.router)
+app.include_router(reports.router)
 
 
 # -----------------------------
