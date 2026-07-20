@@ -1,0 +1,301 @@
+{
+  "conversations": [
+    {
+      "userId": "demo_user_001",
+      "title": "New Chat",
+      "createdAt": "2026-07-19T13:41:58.724595Z",
+      "updatedAt": "2026-07-19T13:42:38.665665Z",
+      "_id": "6a5cd42626e184c5252de0c9"
+    },
+    {
+      "userId": "demo_user_001",
+      "title": "Eligible Government Schemes Inquiry",
+      "createdAt": "2026-07-19T13:53:00.532697Z",
+      "updatedAt": "2026-07-19T13:53:03.209291Z",
+      "_id": "6a5cd6bcb3fa8be752e11f0c"
+    },
+    {
+      "userId": "demo_user_001",
+      "title": "Current Law Discussion Forum",
+      "createdAt": "2026-07-19T13:55:21.301524Z",
+      "updatedAt": "2026-07-19T13:57:27.711358Z",
+      "_id": "6a5cd749b3fa8be752e11f0f"
+    }
+  ],
+  "chat_history": [
+    {
+      "conversationId": "6a5cd42626e184c5252de0c9",
+      "userId": "demo_user_001",
+      "type": "user",
+      "text": "What schemes am I eligible for?",
+      "timestamp": "2026-07-19T13:42:01.610881Z",
+      "_id": "6a5cd42926e184c5252de0ca"
+    },
+    {
+      "conversationId": "6a5cd42626e184c5252de0c9",
+      "userId": "demo_user_001",
+      "type": "bot",
+      "text": "## Direct Answer\nYou are eligible for the PM Kaushal Vikas Yojana scheme.\n\n## Profile Details Considered\nThe profile details considered for this recommendation include:\n- Location: Central District, Jharkhand\n- Age: 18\n- Profession: Tech Professional\n- Income: $50,000 - $100,000\n- Employment Status: Employed\n- Category: farmer\n- Household Size: 11\n\n## Matching Scheme(s)\n\n### Scheme 1: PM Kaushal Vikas Yojana\n#### Scheme Name\nPM Kaushal Vikas Yojana\n#### Eligibility Status\nEligible\n#### Reason\nYou are an Indian citizen and a youth seeking skill training, which aligns with the eligibility criteria of the PM Kaushal Vikas Yojana scheme.\n#### Benefits\nFree training, certification, and placement assistance.\n#### Official Source\nhttps://www.pmkvyofficial.org\n#### Application Process\nNot specified in the provided document.\n\nNote: The PM Vishwakarma and Startup India schemes do not match your profile because the PM Vishwakarma scheme is for traditional artisans or craftspeople, and the Startup India scheme is for recognized startups with Indian founders, which does not align with the provided profession or employment status.",
+      "timestamp": "2026-07-19T13:42:01.629793Z",
+      "_id": "6a5cd42926e184c5252de0cb"
+    },
+    {
+      "conversationId": "6a5cd42626e184c5252de0c9",
+      "userId": "demo_user_001",
+      "type": "user",
+      "text": "what is PM Vishwakarma?",
+      "timestamp": "2026-07-19T13:42:38.609786Z",
+      "_id": "6a5cd44e26e184c5252de0cc"
+    },
+    {
+      "conversationId": "6a5cd42626e184c5252de0c9",
+      "userId": "demo_user_001",
+      "type": "bot",
+      "text": "## Direct Answer\nThe PM Vishwakarma scheme is a government initiative that provides end-to-end support to traditional artisans and craftspeople.\n\n## Profile Details Considered\nThe profile details considered for this explanation include:\n- Location: Central District, Jharkhand\n- Age: 18\n- Profession: Tech Professional\n- Income: $50,000 - $100,000\n- Employment Status: Employed\n- Category: farmer\n- Household Size: 11\n\n## Matching Scheme(s)\n\n### Scheme 1: PM Vishwakarma\n#### Scheme Name\nPM Vishwakarma\n#### Eligibility Status\nNot Eligible\n#### Reason\nYou are a tech professional, which does not align with the eligibility criteria of the PM Vishwakarma scheme that is specifically for traditional artisans or craftspeople.\n#### Benefits\nSkill training, toolkit incentive, collateral-free loans.\n#### Official Source\nhttps://pmvishwakarma.gov.in\n#### Application Process\nNot specified in the provided document.\n\nNote: The provided document \"PM Vishwakarma\" was used for this analysis.",
+      "timestamp": "2026-07-19T13:42:38.644587Z",
+      "_id": "6a5cd44e26e184c5252de0cd"
+    },
+    {
+      "conversationId": "6a5cd6bcb3fa8be752e11f0c",
+      "userId": "demo_user_001",
+      "type": "user",
+      "text": "What schemes am I eligible for?",
+      "timestamp": "2026-07-19T13:53:03.171245Z",
+      "_id": "6a5cd6bfb3fa8be752e11f0d"
+    },
+    {
+      "conversationId": "6a5cd6bcb3fa8be752e11f0c",
+      "userId": "demo_user_001",
+      "type": "bot",
+      "text": "## Direct Answer\n\nYou are eligible for the PM Kaushal Vikas Yojana scheme.\n\n## Profile Details Considered\n\nThe following profile details were considered: Age (18), Location (Central District, Jharkhand), Profession (Tech Professional), Income ($50,000 - $100,000), Employment Status (Employed), Category (farmer), Household Size (11).\n\n## Matching Scheme(s)\n\n### Scheme 1: PM Kaushal Vikas Yojana\n\nScheme Name: PM Kaushal Vikas Yojana\n\nEligibility Status: Eligible\n\nReason: You are an Indian Citizen and a youth seeking skill training, which matches the eligibility criteria for PM Kaushal Vikas Yojana.\n\nBenefits: Free training, certification, and placement assistance.\n\nOfficial Source: https://www.pmkvyofficial.org\n\nApplication Process: Not specified in the provided document.\n\nNote: Although your profession is listed as Tech Professional, the scheme's eligibility criteria do not exclude individuals based on their current profession, focusing instead on their desire for skill development training. \n\n### Scheme 2: PM Vishwakarma\n\nScheme Name: PM Vishwakarma\n\nEligibility Status: Not Eligible\n\nReason: You do not match the eligibility criteria for PM Vishwakarma as there is no indication that you are a traditional artisan or craftsperson.\n\n### Scheme 3: Startup India\n\nScheme Name: Startup India\n\nEligibility Status: Not Eligible\n\nReason: You do not match the eligibility criteria for Startup India as there is no indication that you are a recognized startup or have Indian founders in the context of starting a new business.",
+      "timestamp": "2026-07-19T13:53:03.195328Z",
+      "_id": "6a5cd6bfb3fa8be752e11f0e"
+    },
+    {
+      "conversationId": "6a5cd749b3fa8be752e11f0f",
+      "userId": "demo_user_001",
+      "type": "user",
+      "text": "What is current law going on",
+      "timestamp": "2026-07-19T13:55:23.634080Z",
+      "_id": "6a5cd74bb3fa8be752e11f10"
+    },
+    {
+      "conversationId": "6a5cd749b3fa8be752e11f0f",
+      "userId": "demo_user_001",
+      "type": "bot",
+      "text": "## Direct Answer\nThe current law is the Right to Information Act 2005.\n\n## Profile Details Considered\nAge: 18, Location: Central District, Jharkhand, Profession: Tech Professional, Income: $50,000 - $100,000, Category: farmer\n\n## Matching Scheme(s)\n\n### Right to Information Act 2005\n\nScheme Name: Right to Information Act 2005\nEligibility Status: Eligible\nReason: The Right to Information Act 2005 is applicable to all citizens of India, and the provided profile does not contain any information that would make the citizen ineligible for this law.\nBenefits: Access to government information, Promotes accountability\nOfficial Source: https://rti.gov.in\nApplication Process: Not applicable, as this is a law that provides a right to citizens rather than a scheme with an application process.",
+      "timestamp": "2026-07-19T13:55:23.682599Z",
+      "_id": "6a5cd74bb3fa8be752e11f11"
+    },
+    {
+      "conversationId": "6a5cd749b3fa8be752e11f0f",
+      "userId": "demo_user_001",
+      "type": "user",
+      "text": ".....................",
+      "timestamp": "2026-07-19T13:57:27.677200Z",
+      "_id": "6a5cd7c7b3fa8be752e11f12"
+    },
+    {
+      "conversationId": "6a5cd749b3fa8be752e11f0f",
+      "userId": "demo_user_001",
+      "type": "bot",
+      "text": "It seems like the user hasn't asked a question yet. Please go ahead and ask your question, and I'll be happy to help!",
+      "timestamp": "2026-07-19T13:57:27.698702Z",
+      "_id": "6a5cd7c7b3fa8be752e11f13"
+    }
+  ],
+  "profiles": [
+    {
+      "userId": "demo_user_001",
+      "name": "John Doe",
+      "email": "demo@civicsync.com",
+      "phone": "",
+      "location": "Central District, Jharkhand",
+      "dob": "2007-09-11",
+      "profession": "Tech Professional",
+      "income": "$50,000 - $100,000",
+      "employmentStatus": "Employed",
+      "householdSize": "11",
+      "category": "farmer",
+      "disabilityStatus": "",
+      "veteranStatus": "",
+      "studentStatus": "",
+      "_id": "6a5ca4a0bd8e4e3baa6fbbff"
+    }
+  ],
+  "government_documents": [
+    {
+      "_id": "scheme001",
+      "title": "PM Vishwakarma",
+      "category": "government_scheme",
+      "summary": "A scheme providing end-to-end support to traditional artisans and craftspeople.",
+      "content": "PM Vishwakarma provides support to traditional artisans and craftspeople through skill training, toolkit incentives, and collateral-free loans.",
+      "eligibilityCriteria": [
+        "Indian Citizen",
+        "Age 18 years or above",
+        "Traditional artisan or craftsperson"
+      ],
+      "benefits": "Skill training, toolkit incentive, collateral-free loans.",
+      "officialSource": "https://pmvishwakarma.gov.in",
+      "tags": [
+        "artisan",
+        "loan",
+        "skill",
+        "scheme"
+      ],
+      "keyPoints": [
+        "Toolkit incentive",
+        "Skill training",
+        "Financial assistance"
+      ],
+      "isGovernmentDocument": true,
+      "visibility": "government"
+    },
+    {
+      "_id": "scheme002",
+      "title": "PM Kaushal Vikas Yojana",
+      "category": "government_scheme",
+      "summary": "Provides free skill development training for youth.",
+      "content": "PMKVY provides skill development training, certification and employment support to eligible youth.",
+      "eligibilityCriteria": [
+        "Indian Citizen",
+        "Youth seeking skill training"
+      ],
+      "benefits": "Free training, certification, placement assistance.",
+      "officialSource": "https://www.pmkvyofficial.org",
+      "tags": [
+        "student",
+        "training",
+        "skill",
+        "scheme"
+      ],
+      "keyPoints": [
+        "Free training",
+        "Government certification"
+      ],
+      "isGovernmentDocument": true,
+      "visibility": "government"
+    },
+    {
+      "_id": "scheme003",
+      "title": "Startup India",
+      "category": "government_scheme",
+      "summary": "Promotes entrepreneurship and startup growth in India.",
+      "content": "Startup India supports entrepreneurs through easier compliance, funding support and startup benefits.",
+      "eligibilityCriteria": [
+        "Recognized startup",
+        "Indian founders"
+      ],
+      "benefits": "Tax benefits, funding support, easier compliance.",
+      "officialSource": "https://www.startupindia.gov.in",
+      "tags": [
+        "startup",
+        "entrepreneur",
+        "business"
+      ],
+      "keyPoints": [
+        "Tax exemption",
+        "Funding support"
+      ],
+      "isGovernmentDocument": true,
+      "visibility": "government"
+    },
+    {
+      "_id": "policy001",
+      "title": "National Education Policy 2020",
+      "category": "government_policy",
+      "summary": "A policy focused on transforming India's education system.",
+      "content": "National Education Policy 2020 introduces reforms in school education, higher education, vocational learning, multidisciplinary education and skill development.",
+      "objectives": [
+        "Improve education quality",
+        "Promote skill development",
+        "Increase flexibility in learning"
+      ],
+      "tags": [
+        "education",
+        "learning",
+        "policy"
+      ],
+      "keyPoints": [
+        "5+3+3+4 education structure",
+        "Multidisciplinary education",
+        "Skill-based learning"
+      ],
+      "officialSource": "https://www.education.gov.in",
+      "isGovernmentDocument": true,
+      "visibility": "government"
+    },
+    {
+      "_id": "law001",
+      "title": "Right to Information Act 2005",
+      "category": "government_law",
+      "summary": "A law that provides citizens the right to access information from public authorities.",
+      "content": "The Right to Information Act 2005 promotes transparency and accountability by allowing citizens to request information from government organizations.",
+      "provisions": [
+        "Right to request information",
+        "Transparency in government functioning",
+        "Accountability of public authorities"
+      ],
+      "tags": [
+        "RTI",
+        "citizen rights",
+        "transparency",
+        "law"
+      ],
+      "keyPoints": [
+        "Access to government information",
+        "Promotes accountability"
+      ],
+      "officialSource": "https://rti.gov.in",
+      "isGovernmentDocument": true,
+      "visibility": "government"
+    },
+    {
+      "_id": "act001",
+      "title": "Digital Personal Data Protection Act 2023",
+      "category": "government_act",
+      "summary": "An act focused on protection of digital personal data.",
+      "content": "The Digital Personal Data Protection Act 2023 establishes rules for processing digital personal data and protects individual privacy.",
+      "provisions": [
+        "Protection of personal data",
+        "Responsibilities of data processors",
+        "User consent requirements"
+      ],
+      "tags": [
+        "privacy",
+        "data protection",
+        "digital",
+        "act"
+      ],
+      "keyPoints": [
+        "Data privacy",
+        "Digital security"
+      ],
+      "officialSource": "https://www.meity.gov.in",
+      "isGovernmentDocument": true,
+      "visibility": "government"
+    },
+    {
+      "_id": "bill001",
+      "title": "Women's Reservation Bill 2023",
+      "category": "government_bill",
+      "summary": "A bill related to reservation of seats for women in legislative bodies.",
+      "content": "The bill provides provisions related to reservation of seats for women in the Lok Sabha and State Legislative Assemblies.",
+      "provisions": [
+        "Reservation for women representatives",
+        "Representation in legislative bodies"
+      ],
+      "tags": [
+        "women",
+        "reservation",
+        "bill"
+      ],
+      "keyPoints": [
+        "Political representation",
+        "Women empowerment"
+      ],
+      "isGovernmentDocument": true,
+      "visibility": "government"
+    }
+  ]
+}
