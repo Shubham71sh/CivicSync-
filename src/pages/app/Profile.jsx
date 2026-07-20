@@ -167,6 +167,62 @@ export default function Profile() {
                     <option>$200,000+</option>
                   </select>
                 </div>
+                <div>
+                  <label className="text-xs text-textSecondary mb-2 block uppercase tracking-wider font-semibold">Employment Status</label>
+                  <select
+                    disabled={!isEditing}
+                    name="employmentStatus"
+                    value={formData.employmentStatus || ""}
+                    onChange={handleChange}
+                    className="w-full bg-[#12141d] border border-border rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:border-accent disabled:opacity-70 transition-colors"
+                  >
+                    <option value="">Not specified</option>
+                    <option>Employed</option>
+                    <option>Self-employed</option>
+                    <option>Unemployed</option>
+                    <option>Retired</option>
+                    <option>Student</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-textSecondary mb-2 block uppercase tracking-wider font-semibold">Household Size</label>
+                  <input
+                    disabled={!isEditing}
+                    type="number"
+                    min="1"
+                    name="householdSize"
+                    value={formData.householdSize || ""}
+                    onChange={handleChange}
+                    placeholder="e.g. 4"
+                    className="w-full bg-[#12141d] border border-border rounded-xl py-3 px-4 text-sm text-white placeholder:text-textMuted focus:outline-none focus:border-accent disabled:opacity-70 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-textSecondary mb-2 block uppercase tracking-wider font-semibold">Eligibility Category</label>
+                  <input
+                    disabled={!isEditing}
+                    type="text"
+                    name="category"
+                    value={formData.category || ""}
+                    onChange={handleChange}
+                    placeholder="e.g. farmer, senior citizen"
+                    className="w-full bg-[#12141d] border border-border rounded-xl py-3 px-4 text-sm text-white placeholder:text-textMuted focus:outline-none focus:border-accent disabled:opacity-70 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-textSecondary mb-2 block uppercase tracking-wider font-semibold">Disability Status</label>
+                  <select
+                    disabled={!isEditing}
+                    name="disabilityStatus"
+                    value={formData.disabilityStatus || ""}
+                    onChange={handleChange}
+                    className="w-full bg-[#12141d] border border-border rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:border-accent disabled:opacity-70 transition-colors"
+                  >
+                    <option value="">Not specified</option>
+                    <option>No</option>
+                    <option>Yes</option>
+                  </select>
+                </div>
               </div>
             )}
           </div>
