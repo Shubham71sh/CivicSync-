@@ -2,7 +2,7 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 # pyrefly: ignore [missing-import]
 from sqlalchemy.orm import Session
 from uuid import uuid4
-
+from datetime import datetime, timedelta
 import os
 import shutil
 
@@ -16,6 +16,8 @@ from app.services.eligibility_service import check_eligibility
 from app.models.document import Document
 from app.schemas.document import DocumentCreate
 from app.models.timeline import ClaimTimeline
+from app.models.nearby_help import NearbyHelp
+from app.models.officer import Officer
 
 router = APIRouter(
     prefix="/reports",
@@ -118,7 +120,23 @@ def analyze_report(
             detail="Report not found"
         )
     
-    ai_result = analyze_disaster(report.disaster_type)
+    images = db.query(ReportImage).filter(
+    ReportImage.report_id == report_id
+    ).all()
+
+
+    image_paths = [
+    img.image_path 
+    for img in images
+]
+
+    print("IMAGE PATHS:", image_paths)
+
+
+    ai_result = analyze_disaster(
+        report.disaster_type,
+        image_paths
+    )
 
     print(ai_result)
 
@@ -321,25 +339,27 @@ def save_timeline(
             detail="Report not found"
         )
 
+    today = datetime.now()
+
     timeline_data = [
         {
             "title": "Application Submitted",
-            "description": "Your relief application has been submitted.",
+            "description": f"Application submitted on {today.strftime('%d %b %Y')}",
             "status": "Completed"
         },
         {
             "title": "AI Damage Assessment",
-            "description": "AI analyzed uploaded evidence.",
+            "description": f"AI analysis completed on {today.strftime('%d %b %Y')}",
             "status": "Completed"
         },
         {
             "title": "Officer Verification",
-            "description": "Pending government verification.",
+            "description": f"Verification scheduled on {(today + timedelta(days=1)).strftime('%d %b %Y')}",
             "status": "Pending"
         },
         {
             "title": "Relief Approved",
-            "description": "Funds will be transferred.",
+            "description": f"Expected approval on {(today + timedelta(days=3)).strftime('%d %b %Y')}",
             "status": "Pending"
         }
     ]
@@ -354,6 +374,19 @@ def save_timeline(
         )
 
         db.add(timeline)
+
+        officer = Officer(
+    report_id=report_id,
+    name="Rajesh Kumar",
+    role="Block Development Officer",
+    zone="Ward 14, Patna",
+    phone="+91 9876543210",
+    inspection_date=(today + timedelta(days=1)).strftime("%d %b %Y"),
+    inspection_time="10:00 AM - 12:00 PM",
+    note="Please keep original documents ready during inspection."
+)
+
+    db.add(officer)
 
     db.commit()
 
@@ -371,15 +404,156 @@ def get_timeline(
     timeline = db.query(ClaimTimeline).filter(
         ClaimTimeline.report_id == report_id
     ).all()
+    officer = db.query(Officer).filter(
+    Officer.report_id == report_id
+).first()
+
+    return {
+    "success": True,
+
+    "timeline": [
+        {
+            "title": t.title,
+            "description": t.description,
+            "status": t.status
+        }
+        for t in timeline
+    ],
+
+    "officer": {
+        "name": officer.name,
+        "role": officer.role,
+        "zone": officer.zone,
+        "phone": officer.phone,
+        "inspectionDate": officer.inspection_date,
+        "inspectionTime": officer.inspection_time,
+        "note": officer.note
+    } if officer else None
+}
+
+@router.post("/{report_id}/nearby-help")
+def save_nearby_help(
+    report_id: str,
+    db: Session = Depends(get_db)
+):
+
+    report = db.query(Report).filter(
+        Report.report_id == report_id
+    ).first()
+
+    if not report:
+        raise HTTPException(
+            status_code=404,
+            detail="Report not found"
+        )
+
+    services = [
+
+        {
+            "name": "Civil Hospital",
+            "type": "Hospital",
+            "phone": "108",
+            "distance": "1.3 km",
+            "time": "5 min",
+            "capacity": "Open"
+        },
+
+        {
+            "name": "Disaster Relief Camp",
+            "type": "Relief Camp",
+            "phone": "1070",
+            "distance": "850 m",
+            "time": "2 min",
+            "capacity": "250 People"
+        },
+
+        {
+            "name": "Police Station",
+            "type": "Police Station",
+            "phone": "100",
+            "distance": "2.4 km",
+            "time": "7 min",
+            "capacity": "24x7"
+        },
+
+        {
+            "name": "Food Distribution Center",
+            "type": "Food Center",
+            "phone": "1800-500-222",
+            "distance": "1.8 km",
+            "time": "6 min",
+            "capacity": "Meals Available"
+        },
+
+        {
+            "name": "Electricity Office",
+            "type": "Electricity Office",
+            "phone": "1912",
+            "distance": "3.2 km",
+            "time": "9 min",
+            "capacity": "Emergency Support"
+        }
+
+    ]
+
+    for s in services:
+
+        help_center = NearbyHelp(
+            report_id=report_id,
+            name=s["name"],
+            type=s["type"],
+            phone=s["phone"],
+            distance=s["distance"],
+            time=s["time"],
+            capacity=s["capacity"]
+        )
+
+        db.add(help_center)
+
+    db.commit()
 
     return {
         "success": True,
-        "timeline": [
+        "services": services
+    }
+
+
+@router.get("/{report_id}/nearby-help")
+def get_nearby_help(
+    report_id: str,
+    db: Session = Depends(get_db)
+):
+
+    services = db.query(NearbyHelp).filter(
+        NearbyHelp.report_id == report_id
+    ).all()
+
+    return {
+
+        "success": True,
+
+        "services": [
+
             {
-                "title": t.title,
-                "description": t.description,
-                "status": t.status
+
+                "id": i + 1,
+
+                "name": s.name,
+
+                "type": s.type,
+
+                "phone": s.phone,
+
+                "distance": s.distance,
+
+                "time": s.time,
+
+                "capacity": s.capacity
+
             }
-            for t in timeline
+
+            for i, s in enumerate(services)
+
         ]
+
     }
