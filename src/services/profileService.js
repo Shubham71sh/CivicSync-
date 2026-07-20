@@ -104,6 +104,12 @@ export const updateProfile = async (updateData) => {
       dob: updateData.dob || "",
       profession: updateData.profession || "",
       income: updateData.incomeRange || updateData.income || "$50,000 - $100,000",
+      employmentStatus: updateData.employmentStatus || "",
+      householdSize: updateData.householdSize || "",
+      category: updateData.category || "",
+      disabilityStatus: updateData.disabilityStatus || "",
+      veteranStatus: updateData.veteranStatus || "",
+      studentStatus: updateData.studentStatus || "",
     };
     
     const { data } = await api.put("/profile", payload);

@@ -7,4 +7,15 @@ const api = axios.create({
   },
 });
 
+// Keep profile, bill, and chat requests tied to the same signed-in citizen.
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("civicsync_token");
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
 export default api;
