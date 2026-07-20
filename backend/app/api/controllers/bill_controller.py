@@ -1,18 +1,20 @@
 import os
 import uuid
+import asyncio
 from datetime import datetime
 from fastapi import UploadFile, HTTPException, status
 from app.config.settings import settings
-from app.config.database import get_db
+from app.config.database import get_col
 from app.services.pdf_service import extract_text_from_pdf
 from app.services.ai_summary_service import generate_bill_analysis
 from typing import Dict, Any, Optional
+
 
 class BillController:
     @staticmethod
     async def upload_bill_flow(file: UploadFile, current_user: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Flow to handle PDF upload, extract text, call Gemini for analysis, and save to MongoDB.
+        Flow to handle PDF upload, extract text, call Gemini for analysis, and save to Firestore.
         """
         # Ensure uploads folder exists
         os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
@@ -64,54 +66,52 @@ class BillController:
                 detail=f"AI Summarization failed: {str(e)}"
             )
 
-        # Store in MongoDB using update_one with upsert=True matching by billNumber
-        db = get_db()
         bill_number = analysis.get("billNumber", "GEN-2026")
         
-        # Check if bill with this billNumber already exists to keep its _id
-        existing_bill = await db.bills.find_one({"billNumber": bill_number})
-        
-        if existing_bill:
-            bill_id = existing_bill["_id"]
-            # Clean up old file if it exists and path is different
-            old_file_path = existing_bill.get("filePath")
-            if old_file_path and old_file_path != file_path and os.path.exists(old_file_path):
-                try:
-                    os.remove(old_file_path)
-                except Exception:
-                    pass
-        else:
+        loop = asyncio.get_event_loop()
+
+        def _db_operations():
+            # Check if bill with this billNumber already exists to keep its ID
+            existing = list(get_col("bills").where("billNumber", "==", bill_number).stream())
+            
             bill_id = unique_id
+            if existing:
+                existing_doc = existing[0]
+                bill_id = existing_doc.id
+                existing_data = existing_doc.to_dict()
+                
+                # Clean up old file if it exists and path is different
+                old_file_path = existing_data.get("filePath")
+                if old_file_path and old_file_path != file_path and os.path.exists(old_file_path):
+                    try:
+                        os.remove(old_file_path)
+                    except Exception:
+                        pass
 
-        # Build final bill document
-        bill_doc = {
-            "_id": bill_id,
-            "title": analysis.get("title", file.filename.replace(".pdf", "").title()),
-            "billNumber": bill_number,
-            "status": analysis.get("status", "pending"),
-            "uploadedAt": datetime.utcnow().isoformat() + "Z", # Match standard ISO format used by JS
-            "summary": analysis.get("summary", ""),
-            "extractedText": extracted_text,
-            "impactScore": analysis.get("impactScore", 50),
-            "userImpact": analysis.get("userImpact", ""),
-            "keyPoints": analysis.get("keyPoints", []),
-            "tags": analysis.get("tags", []),
-            "filePath": file_path,
-            "userId": current_user.get("_id", "demo_user_001")
-        }
+            # Build final bill document
+            bill_doc = {
+                "id": bill_id,
+                "_id": bill_id,
+                "title": analysis.get("title", file.filename.replace(".pdf", "").title()),
+                "billNumber": bill_number,
+                "status": analysis.get("status", "pending"),
+                "uploadedAt": datetime.utcnow().isoformat() + "Z",
+                "summary": analysis.get("summary", ""),
+                "extractedText": extracted_text,
+                "impactScore": analysis.get("impactScore", 50),
+                "userImpact": analysis.get("userImpact", ""),
+                "keyPoints": analysis.get("keyPoints", []),
+                "tags": analysis.get("tags", []),
+                "filePath": file_path,
+                "userId": current_user.get("uid", "demo_user_001")
+            }
 
-        # Prepare update payload excluding _id in $set to prevent immutable _id field errors in MongoDB
-        update_fields = {k: v for k, v in bill_doc.items() if k != "_id"}
+            # Set Firestore document
+            get_col("bills").document(bill_id).set(bill_doc)
+            return bill_doc, bill_id
 
         try:
-            await db.bills.update_one(
-                {"billNumber": bill_number},
-                {
-                    "$set": update_fields,
-                    "$setOnInsert": {"_id": bill_id}
-                },
-                upsert=True
-            )
+            bill_doc, bill_id = await loop.run_in_executor(None, _db_operations)
         except Exception as e:
             if os.path.exists(file_path):
                 os.remove(file_path)
@@ -120,7 +120,6 @@ class BillController:
                 detail=f"Database update failed: {str(e)}"
             )
 
-        # Form response model mapping _id back in returned JSON to match what frontend needs
         return {
             "bill": bill_doc,
             "analysisId": bill_id
@@ -135,38 +134,48 @@ class BillController:
         current_user: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
-        Fetch lists of bills with pagination, search queries, and status filtering.
+        Fetch lists of bills with pagination, search queries, and status filtering from Firestore.
         """
-        db = get_db()
-        query = {}
+        loop = asyncio.get_event_loop()
         
-        # If we want to isolate by user, we can restrict by userId
-        if current_user and current_user.get("_id"):
-            query["userId"] = current_user.get("_id")
-            
-        if search:
-            # Case insensitive search on title or billNumber
-            query["$or"] = [
-                {"title": {"$regex": search, "$options": "i"}},
-                {"billNumber": {"$regex": search, "$options": "i"}}
-            ]
-            
-        if status_filter and status_filter != "all":
-            query["status"] = status_filter
+        def _fetch():
+            ref = get_col("bills")
+            # Filter by userId if provided
+            user_id = current_user.get("uid") if current_user else None
+            if user_id:
+                ref = ref.where("userId", "==", user_id)
+            return list(ref.stream())
 
         try:
-            total = await db.bills.count_documents(query)
-            skip = (page - 1) * limit
-            
-            cursor = db.bills.find(query).skip(skip).limit(limit).sort("uploadedAt", -1)
+            docs = await loop.run_in_executor(None, _fetch)
             bills_list = []
-            async for doc in cursor:
-                bills_list.append(doc)
+            for doc in docs:
+                data = doc.to_dict()
+                data["id"] = doc.id
+                data["_id"] = doc.id
+                bills_list.append(data)
                 
+            # Filter in-memory for search and status
+            if search:
+                s_lower = search.lower()
+                bills_list = [
+                    b for b in bills_list 
+                    if s_lower in b.get("title", "").lower() or s_lower in b.get("billNumber", "").lower()
+                ]
+                
+            if status_filter and status_filter != "all":
+                bills_list = [b for b in bills_list if b.get("status") == status_filter]
+                
+            # Sort in-memory by uploadedAt descending
+            bills_list.sort(key=lambda x: x.get("uploadedAt", ""), reverse=True)
+
+            total = len(bills_list)
+            skip = (page - 1) * limit
+            paginated = bills_list[skip:skip + limit]
             pages = (total + limit - 1) // limit if total > 0 else 1
             
             return {
-                "bills": bills_list,
+                "bills": paginated,
                 "total": total,
                 "page": page,
                 "pages": pages
@@ -180,17 +189,20 @@ class BillController:
     @staticmethod
     async def get_bill_by_id_flow(bill_id: str) -> Dict[str, Any]:
         """
-        Retrieve details of a single bill.
+        Retrieve details of a single bill from Firestore.
         """
-        db = get_db()
+        loop = asyncio.get_event_loop()
         try:
-            bill = await db.bills.find_one({"_id": bill_id})
-            if not bill:
+            doc = await loop.run_in_executor(None, lambda: get_col("bills").document(bill_id).get())
+            if not doc.exists:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Bill with ID '{bill_id}' not found."
                 )
-            return {"bill": bill}
+            bill_data = doc.to_dict()
+            bill_data["id"] = doc.id
+            bill_data["_id"] = doc.id
+            return {"bill": bill_data}
         except HTTPException:
             raise
         except Exception as e:
@@ -202,28 +214,28 @@ class BillController:
     @staticmethod
     async def delete_bill_flow(bill_id: str) -> Dict[str, Any]:
         """
-        Delete a bill by its ID. Also clean up its file on disk.
+        Delete a bill by its ID from Firestore. Also clean up its file on disk.
         """
-        db = get_db()
+        loop = asyncio.get_event_loop()
         try:
-            bill = await db.bills.find_one({"_id": bill_id})
-            if not bill:
+            doc = await loop.run_in_executor(None, lambda: get_col("bills").document(bill_id).get())
+            if not doc.exists:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Bill with ID '{bill_id}' not found."
                 )
             
+            bill = doc.to_dict()
             # Delete file on disk if it exists
             file_path = bill.get("filePath")
             if file_path and os.path.exists(file_path):
                 try:
                     os.remove(file_path)
-                except Exception as ex:
-                    # Log error, but proceed to delete from DB
+                except Exception:
                     pass
             
             # Delete database document
-            await db.bills.delete_one({"_id": bill_id})
+            await loop.run_in_executor(None, lambda: get_col("bills").document(bill_id).delete())
             return {"success": True, "message": "Bill deleted successfully."}
         except HTTPException:
             raise
