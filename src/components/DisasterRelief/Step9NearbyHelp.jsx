@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from "react";
+import {
+GoogleMap,
+Marker,
+InfoWindow,
+useJsApiLoader,
+} from "@react-google-maps/api";
+console.log(import.meta.env.VITE_GOOGLE_MAPS_API_KEY);
 import { MapPin, Phone, Navigation, Heart, ShieldAlert, Zap, Landmark, HeartHandshake } from "lucide-react";
 import { motion } from "framer-motion";
+
+const libraries = ["places"];
 
 const iconMap = {
   "Relief Camp": Landmark,
@@ -18,6 +27,8 @@ const defaultColor = {
   "Electricity Office": "#F59E0B",
 };
 
+
+
 // Positions for the mock map pins (percentage values)
 const PIN_POSITIONS = [
   { x: "42%", y: "44%" },
@@ -27,20 +38,96 @@ const PIN_POSITIONS = [
   { x: "72%", y: "65%" },
 ];
 
+const mapContainerStyle = {
+  width: "100%",
+  height: "100%",
+};
+
 export default function Step9NearbyHelp({
     services = [],
 }) {
-  const [selected, setSelected] = useState(
-  services.length > 0 ? services[0] : null
-);
-useEffect(() => {
-  if (services.length > 0) {
-    setSelected(services[0]);
-  }
-}, [services]);
+  const [selected, setSelected] = useState(null);
 
-console.log("Services:", services);
-console.log("Selected:", selected);
+const [userLocation, setUserLocation] = useState(null);
+
+const mockPlaces = [
+  {
+    place_id: "1",
+    name: "Civil Hospital Chandigarh",
+    vicinity: "Sector 16, Chandigarh",
+    rating: 4.6,
+    business_status: "OPERATIONAL",
+    geometry: {
+      location: {
+        lat: () => 30.7415,
+        lng: () => 76.7680,
+      },
+    },
+  },
+  {
+    place_id: "2",
+    name: "Punjab Police Headquarters",
+    vicinity: "Sector 9, Chandigarh",
+    rating: 4.4,
+    business_status: "OPERATIONAL",
+    geometry: {
+      location: {
+        lat: () => 30.7480,
+        lng: () => 76.7935,
+      },
+    },
+  },
+  {
+    place_id: "3",
+    name: "Flood Relief Camp Mohali",
+    vicinity: "Phase 7, Mohali",
+    rating: 4.7,
+    business_status: "OPERATIONAL",
+    geometry: {
+      location: {
+        lat: () => 30.7046,
+        lng: () => 76.7179,
+      },
+    },
+  },
+  {
+    place_id: "4",
+    name: "Community Food Center",
+    vicinity: "Zirakpur",
+    rating: 4.5,
+    business_status: "OPERATIONAL",
+    geometry: {
+      location: {
+        lat: () => 30.6425,
+        lng: () => 76.8173,
+      },
+    },
+  },
+];
+
+const [map, setMap] = useState(null);
+const [nearbyPlaces, setNearbyPlaces] = useState([]);
+
+useEffect(() => {
+  setNearbyPlaces(mockPlaces);
+  setSelected(mockPlaces[0]);
+}, []);
+
+const { isLoaded } = useJsApiLoader({
+  googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+  libraries,
+});
+
+useEffect(() => {
+  console.log("Selected Service:", selected);
+}, [selected]);
+
+useEffect(() => {
+  setUserLocation({
+    lat: 30.7333,
+    lng: 76.7794, // Chandigarh, Punjab region
+  });
+}, []);
 
   return (
     <div className="space-y-6">
@@ -58,14 +145,14 @@ console.log("Selected:", selected);
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
         {/* Left: Service List (3 cols) */}
         <div className="lg:col-span-3 space-y-3">
-          {services.map((service) => {
-            const Icon = iconMap[service.type] || Landmark;
-            const isSelected = selected?.id === service.id;
+          {nearbyPlaces.map((place) => {
+            const Icon = Landmark;
+            const isSelected = selected?.place_id === place.place_id;
 
             return (
               <motion.div
-                key={service.id}
-                onClick={() => setSelected(service)}
+                key={place.place_id}
+                onClick={() => setSelected(place)}
                 whileHover={{ x: 2 }}
                 className={`p-4 rounded-[20px] border cursor-pointer transition-all duration-300 flex items-center gap-4 relative overflow-hidden ${
                   isSelected
@@ -82,9 +169,9 @@ console.log("Selected:", selected);
                 <div
                   className="w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0 border"
                   style={{
-                    backgroundColor: `${defaultColor[service.type]}12`,
-                    borderColor: `${defaultColor[service.type]}20`,
-                    color: defaultColor[service.type],
+                    backgroundColor: "#F4C95D20",
+                    borderColor: "#F4C95D40",
+                    color: "#F4C95D",
                   }}
                 >
                   <Icon className="w-5 h-5 stroke-[1.5]" />
@@ -93,26 +180,26 @@ console.log("Selected:", selected);
                 {/* Details */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[9px] font-bold uppercase tracking-widest font-poppins" style={{ color: defaultColor[service.type] }}>
-                      {service.type}
+                    <span className="text-[9px] font-bold uppercase tracking-widest font-poppins" style={{ color: "#F4C95D" }}>
+                      Emergency Service
                     </span>
                   </div>
-                  <h4 className="text-xs font-bold text-white truncate font-inter">{service.name}</h4>
+                  <h4 className="text-xs font-bold text-white truncate font-inter">{place.name}</h4>
                   <div className="flex items-center gap-3 mt-1.5 text-[9px] text-[#A5A8B5] font-semibold font-space-grotesk">
                     <span className="flex items-center gap-1">
                       <Phone className="w-3 h-3" />
-                      {service.phone}
+                      Phone unavailable
                     </span>
                     <span className="text-[#22C55E]">
-  {service.capacity || "Available"}
+  Open
 </span>
                   </div>
                 </div>
 
                 {/* Distance + Time */}
                 <div className="text-right shrink-0">
-                  <span className="text-sm font-bold text-white font-space-grotesk block">{service.distance}</span>
-                  <span className="text-[9px] text-[#A5A8B5] font-medium">{service.time || "--"} drive</span>
+                  <span className="text-sm font-bold text-white font-space-grotesk block">Nearby</span>
+                  <span className="text-[9px] text-[#A5A8B5] font-medium">-- drive</span>
                   <button className="mt-2 flex items-center gap-1 text-[#F4C95D] text-[9px] font-bold hover:underline ml-auto">
                     <Navigation className="w-2.5 h-2.5" />
                     Route
@@ -129,91 +216,159 @@ console.log("Selected:", selected);
           <div className="px-4 py-3 border-b border-[rgba(255,255,255,0.06)] flex items-center justify-between bg-[#0B0B12]/60 backdrop-blur-sm">
             <span className="text-[10px] font-bold text-white font-poppins flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-[#F4C95D]" />
-              Patna Ward 14 · Live GPS
+              Current Location
             </span>
-            <span className="text-[9px] font-bold text-[#22C55E]">{selected?.distance} away</span>
+            <span className="text-[9px] font-bold text-[#22C55E]">
+  Nearby
+</span>
           </div>
 
           {/* SVG Vector Map */}
-          <div className="flex-1 relative overflow-hidden">
-            {/* Background grid */}
-            <div
-              className="absolute inset-0 opacity-[0.04]"
-              style={{
-                backgroundImage: "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
-                backgroundSize: "24px 24px",
-              }}
-            />
+          <div className="flex-1">
 
-            {/* SVG representing Patna roads + Ganges */}
-            <svg viewBox="0 0 300 300" className="absolute inset-0 w-full h-full">
-              {/* Ganges river */}
-              <path d="M -20,40 Q 100,80 320,30" fill="none" stroke="#1e40af" strokeWidth="20" opacity="0.15" />
-              <path d="M -20,40 Q 100,80 320,30" fill="none" stroke="#3b82f6" strokeWidth="1" strokeDasharray="6 4" opacity="0.3" />
+{!isLoaded ? (
 
-              {/* Roads */}
-              <line x1="0" y1="120" x2="300" y2="120" stroke="rgba(255,255,255,0.05)" strokeWidth="10" />
-              <line x1="0" y1="120" x2="300" y2="120" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
-              <line x1="90" y1="0" x2="90" y2="300" stroke="rgba(255,255,255,0.05)" strokeWidth="10" />
-              <line x1="90" y1="0" x2="90" y2="300" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
-              <line x1="200" y1="0" x2="200" y2="300" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
-              <line x1="200" y1="0" x2="200" y2="300" stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
-              <line x1="0" y1="190" x2="300" y2="190" stroke="rgba(255,255,255,0.04)" strokeWidth="6" />
-            </svg>
+<div className="flex items-center justify-center h-full text-white">
+Loading Google Maps...
+</div>
 
-            {/* You are here indicator */}
-            <div className="absolute" style={{ left: "50%", top: "52%", transform: "translate(-50%,-50%)" }}>
-              <div className="w-10 h-10 rounded-full bg-[#2563eb]/15 animate-ping absolute inset-0" />
-              <div className="w-4 h-4 rounded-full bg-[#3b82f6] border-2 border-white shadow-lg relative z-10 m-3" />
-              <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[8px] font-bold text-[#A5A8B5] whitespace-nowrap">YOU</span>
-            </div>
+) : (
 
-            {/* Service Pins */}
-            {services.map((service, idx) => {
-              const pos = PIN_POSITIONS[idx];
-              if (!pos) return null;
-              const isActive = selected?.id === service.id;
-              const Icon = iconMap[service.type] || MapPin;
+<GoogleMap
+  mapContainerStyle={mapContainerStyle}
+  center={
+    userLocation || {
+      lat: 25.5941,
+      lng: 85.1376,
+    }
+  }
+  onLoad={(mapInstance) => {
+  setMap(mapInstance);
 
-              return (
-                <motion.div
-                  key={service.id}
-                  style={{ left: pos.x, top: pos.y, position: "absolute", transform: "translate(-50%,-50%)" }}
-                  animate={{ scale: isActive ? 1.3 : 1 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                  onClick={() => setSelected(service)}
-                  className="cursor-pointer z-20"
-                >
-                  <div
-                    className={`w-7 h-7 rounded-full flex items-center justify-center border-2 shadow-lg transition-all ${
-                      isActive ? "border-[#F4C95D]" : "border-[rgba(255,255,255,0.15)]"
-                    }`}
-                    style={{
-                      backgroundColor: isActive ? defaultColor[service.type] : "#11131A",
-                      color: isActive ? "#0B0B12" : defaultColor[service.type],
-                    }}
-                  >
-                    <Icon className="w-3 h-3" />
-                  </div>
-                  {isActive && (
-                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-[#0B0B12] border border-[rgba(255,255,255,0.1)] text-white text-[8px] font-bold px-2 py-1 rounded-[8px] whitespace-nowrap shadow-xl z-30">
-                      {service.name.split(" ").slice(0, 3).join(" ")}
-                    </div>
-                  )}
-                </motion.div>
-              );
-            })}
-          </div>
+  if (userLocation) {
+    mapInstance.panTo(userLocation);
+  }
+}}zoom={14}
+>
+
+{userLocation && (
+  <Marker
+    position={userLocation}
+    title="Your Current Location"
+    icon={{
+      url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+    }}
+  />
+)}
+
+{nearbyPlaces.map((place) => (
+
+<Marker
+    key={place.place_id}
+    position={{
+        lat: place.geometry.location.lat(),
+        lng: place.geometry.location.lng(),
+    }}
+    onClick={() => setSelected(place)}
+/>
+
+))}
+
+{selected && (
+
+<InfoWindow
+position={{
+    lat: selected.geometry.location.lat(),
+    lng: selected.geometry.location.lng(),
+}}
+onCloseClick={()=>setSelected(null)}
+>
+
+<div
+  style={{
+    minWidth: "220px",
+    padding: "8px",
+    fontFamily: "Arial",
+  }}
+>
+  <h3
+    style={{
+      margin: 0,
+      fontSize: "16px",
+      fontWeight: "700",
+      color: "#111827",
+    }}
+  >
+    {selected.name}
+  </h3>
+
+ <p>{selected.vicinity}</p>
+
+<p>
+⭐ {selected.rating || "No rating"}
+</p>
+
+<p>
+Status:
+{selected.business_status}
+</p>
+
+  <button
+    onClick={() => {
+      const destination = selected.geometry.location;
+
+     if (!userLocation) return;
+
+window.open(
+`https://www.google.com/maps/dir/${userLocation.lat},${userLocation.lng}/${destination.lat()},${destination.lng()}`,
+"_blank"
+);
+    }}
+    style={{
+      marginTop: "8px",
+      background: "#F4C95D",
+      border: "none",
+      borderRadius: "8px",
+      padding: "8px 12px",
+      cursor: "pointer",
+      fontWeight: "bold",
+    }}
+  >
+    Get Directions
+  </button>
+</div>
+
+</InfoWindow>
+
+)}
+
+</GoogleMap>
+
+)}
+
+</div>
 
           {/* Map Footer */}
           <div className="px-4 py-3 border-t border-[rgba(255,255,255,0.06)] bg-[#0B0B12]/40 flex items-center justify-between">
             <span className="text-[10px] text-white font-bold truncate max-w-[160px] font-inter">
               {selected?.name}
             </span>
-            <button className="flex items-center gap-1 text-[#F4C95D] text-[9px] font-bold hover:underline shrink-0">
-              <Navigation className="w-3 h-3" />
-              Get Directions
-            </button>
+            <button
+  onClick={() => {
+  if (!selected || !userLocation) return;
+
+const destination = selected.geometry.location;
+
+window.open(
+`https://www.google.com/maps/dir/${userLocation.lat},${userLocation.lng}/${destination.lat()},${destination.lng()}`,
+"_blank"
+);
+}}
+  className="flex items-center gap-1 text-[#F4C95D] text-[9px] font-bold hover:underline"
+>
+  <Navigation className="w-3 h-3" />
+  Get Directions
+</button>
           </div>
         </div>
       </div>

@@ -193,3 +193,30 @@ export const simulateImpact = async (params) => {
     metrics: { gdpGrowth, employment, co2Reduction, taxRevenue },
   };
 };
+
+/**
+ * Fetch chat history from the backend.
+ * @returns {Promise<Array<{ id, type, text, timestamp }>>}
+ */
+export const getChatHistory = async () => {
+  try {
+    const { data } = await api.get("/chat/history");
+    return data.history || [];
+  } catch (error) {
+    console.error("[aiService.getChatHistory] Error fetching chat history:", error);
+    return [];
+  }
+};
+
+/**
+ * Clear chat history from the backend database.
+ */
+export const clearChatHistory = async () => {
+  try {
+    const { data } = await api.delete("/chat/history");
+    return data;
+  } catch (error) {
+    console.error("[aiService.clearChatHistory] Error clearing chat history:", error);
+    throw error;
+  }
+};
