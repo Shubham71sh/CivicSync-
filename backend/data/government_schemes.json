@@ -1,0 +1,275 @@
+{
+  "flood": [
+    {
+      "id": "FL001",
+      "name": "National Disaster Response Fund (NDRF)",
+      "state": "All",
+      "department": "Ministry of Home Affairs",
+      "benefit": "Financial assistance for flood affected families",
+      "amount": "₹95,100",
+      "min_damage": 40,
+      "official_link": "https://ndmindia.mha.gov.in/",
+      "documents": [
+        "Aadhaar Card",
+        "Bank Passbook",
+        "Damage Photos"
+      ]
+    },
+    {
+      "id": "FL002",
+      "name": "Punjab State Disaster Relief Fund",
+      "state": "Punjab",
+      "department": "Punjab Revenue Department",
+      "benefit": "House Damage Compensation",
+      "amount": "₹1,20,000",
+      "min_damage": 30,
+      "official_link": "https://revenue.punjab.gov.in/",
+      "documents": [
+        "Residence Proof",
+        "Damage Photos",
+        "Aadhaar"
+      ]
+    },
+    {
+      "id": "FL003",
+      "name": "PMAY House Repair Assistance",
+      "state": "All",
+      "department": "Ministry of Housing",
+      "benefit": "House Repair Grant",
+      "amount": "₹50,000",
+      "min_damage": 60,
+      "official_link": "https://pmaymis.gov.in/",
+      "documents": [
+        "House Ownership Proof",
+        "Damage Photos",
+        "Bank Passbook"
+      ]
+    }
+  ],
+
+  "fire": [
+    {
+      "id": "FR001",
+      "name": "National Fire Relief Scheme",
+      "state": "All",
+      "department": "Ministry of Home Affairs",
+      "benefit": "Financial support for fire affected families",
+      "amount": "₹1,00,000",
+      "min_damage": 30,
+      "official_link": "https://ndmindia.mha.gov.in/",
+      "documents": [
+        "Aadhaar Card",
+        "Fire Report",
+        "Damage Photos"
+      ]
+    },
+    {
+      "id": "FR002",
+      "name": "Punjab Fire Relief Fund",
+      "state": "Punjab",
+      "department": "Punjab Revenue Department",
+      "benefit": "House Fire Compensation",
+      "amount": "₹75,000",
+      "min_damage": 50,
+      "official_link": "https://revenue.punjab.gov.in/",
+      "documents": [
+        "Residence Proof",
+        "Damage Photos"
+      ]
+    },
+    {
+      "id": "FR003",
+      "name": "PM Emergency Housing Assistance",
+      "state": "All",
+      "department": "PMAY",
+      "benefit": "House Reconstruction",
+      "amount": "₹1,50,000",
+      "min_damage": 70,
+      "official_link": "https://pmaymis.gov.in/",
+      "documents": [
+        "Ownership Proof",
+        "Bank Passbook"
+      ]
+    }
+  ],
+
+  "earthquake": [
+    {
+      "id": "EQ001",
+      "name": "National Earthquake Relief",
+      "state": "All",
+      "department": "NDMA",
+      "benefit": "House Damage Assistance",
+      "amount": "₹2,00,000",
+      "min_damage": 40,
+      "official_link": "https://ndma.gov.in/",
+      "documents": [
+        "Aadhaar",
+        "Damage Certificate"
+      ]
+    },
+    {
+      "id": "EQ002",
+      "name": "Building Reconstruction Grant",
+      "state": "Punjab",
+      "department": "Housing Department",
+      "benefit": "Building Reconstruction",
+      "amount": "₹2,50,000",
+      "min_damage": 70,
+      "official_link": "https://housing.gov.in/",
+      "documents": [
+        "Ownership Proof",
+        "Damage Photos"
+      ]
+    },
+    {
+      "id": "EQ003",
+      "name": "Emergency Shelter Support",
+      "state": "All",
+      "department": "NDRF",
+      "benefit": "Temporary Shelter",
+      "amount": "₹50,000",
+      "min_damage": 30,
+      "official_link": "https://ndmindia.mha.gov.in/",
+      "documents": [
+        "Aadhaar",
+        "Residence Proof"
+      ]
+    }
+  ],
+    "cyclone": [
+    {
+      "id": "CY001",
+      "name": "National Cyclone Relief Fund",
+      "state": "All",
+      "department": "NDMA",
+      "benefit": "Immediate Financial Assistance",
+      "amount": "₹80,000",
+      "min_damage": 30,
+      "official_link": "https://ndma.gov.in/",
+      "documents": [
+        "Aadhaar",
+        "Damage Photos",
+        "Bank Passbook"
+      ]
+    },
+    {
+      "id": "CY002",
+      "name": "House Reconstruction Scheme",
+      "state": "All",
+      "department": "PMAY",
+      "benefit": "House Reconstruction",
+      "amount": "₹2,00,000",
+      "min_damage": 70,
+      "official_link": "https://pmaymis.gov.in/",
+      "documents": [
+        "Ownership Proof",
+        "Damage Certificate"
+      ]
+    },
+    {
+      "id": "CY003",
+      "name": "Crop Loss Compensation",
+      "state": "Punjab",
+      "department": "Agriculture Department",
+      "benefit": "Crop Compensation",
+      "amount": "₹60,000",
+      "min_damage": 40,
+      "official_link": "https://agripb.gov.in/",
+      "documents": [
+        "Farmer ID",
+        "Land Records"
+      ]
+    }
+  ],
+
+  "landslide": [
+    {
+      "id": "LS001",
+      "name": "Landslide Emergency Relief",
+      "state": "All",
+      "department": "NDMA",
+      "benefit": "Emergency Relief",
+      "amount": "₹1,20,000",
+      "min_damage": 40,
+      "official_link": "https://ndma.gov.in/",
+      "documents": [
+        "Aadhaar",
+        "Damage Photos"
+      ]
+    },
+    {
+      "id": "LS002",
+      "name": "House Damage Compensation",
+      "state": "All",
+      "department": "Ministry of Rural Development",
+      "benefit": "House Repair",
+      "amount": "₹2,00,000",
+      "min_damage": 70,
+      "official_link": "https://rural.nic.in/",
+      "documents": [
+        "Ownership Proof",
+        "Damage Certificate"
+      ]
+    },
+    {
+      "id": "LS003",
+      "name": "Punjab Relief Assistance",
+      "state": "Punjab",
+      "department": "Punjab Disaster Authority",
+      "benefit": "Family Relief",
+      "amount": "₹90,000",
+      "min_damage": 50,
+      "official_link": "https://punjab.gov.in/",
+      "documents": [
+        "Residence Proof",
+        "Aadhaar"
+      ]
+    }
+  ],
+
+  "rain": [
+    {
+      "id": "HR001",
+      "name": "Heavy Rain Relief Fund",
+      "state": "All",
+      "department": "NDRF",
+      "benefit": "Financial Assistance",
+      "amount": "₹60,000",
+      "min_damage": 30,
+      "official_link": "https://ndmindia.mha.gov.in/",
+      "documents": [
+        "Aadhaar",
+        "Damage Photos"
+      ]
+    },
+    {
+      "id": "HR002",
+      "name": "Urban Waterlogging Relief",
+      "state": "Punjab",
+      "department": "Municipal Department",
+      "benefit": "House Damage Support",
+      "amount": "₹50,000",
+      "min_damage": 40,
+      "official_link": "https://punjab.gov.in/",
+      "documents": [
+        "Residence Proof",
+        "Bank Passbook"
+      ]
+    },
+    {
+      "id": "HR003",
+      "name": "Crop Rain Damage Compensation",
+      "state": "All",
+      "department": "Agriculture Department",
+      "benefit": "Crop Compensation",
+      "amount": "₹70,000",
+      "min_damage": 50,
+      "official_link": "https://agricoop.nic.in/",
+      "documents": [
+        "Farmer ID",
+        "Land Records"
+      ]
+    }
+  ]
+}
