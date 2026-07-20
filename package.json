@@ -16,6 +16,7 @@
     "caniuse-lite": "^1.0.30001799",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
+    "firebase": "^12.16.0",
     "framer-motion": "^11.0.8",
     "lucide-react": "^0.358.0",
     "react": "^19.2.6",
