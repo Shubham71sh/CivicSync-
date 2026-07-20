@@ -1,29 +1,41 @@
-from motor.motor_asyncio import AsyncIOMotorClient
-from app.config.settings import settings
-import logging
+"""
+Firestore helper — provides get_col() to access Firestore collections.
+All services should import and use this instead of MongoDB motor.
+"""
 
-logger = logging.getLogger("uvicorn.error")
+import asyncio
+from app.core.firebase import get_db
 
-class Database:
-    client: AsyncIOMotorClient = None
-    db = None
 
-db_helper = Database()
+def get_col(name: str):
+    """Return a Firestore CollectionReference by name."""
+    return get_db().collection(name)
 
-def get_db():
-    if db_helper.db is None:
-        try:
-            db_helper.client = AsyncIOMotorClient(settings.MONGODB_URL)
-            db_helper.db = db_helper.client[settings.DATABASE_NAME]
-            logger.info(f"Connected to MongoDB at {settings.MONGODB_URL}")
-        except Exception as e:
-            logger.error(f"Error connecting to MongoDB: {e}")
-            raise e
-    return db_helper.db
 
-def close_db():
-    if db_helper.client:
-        db_helper.client.close()
-        db_helper.client = None
-        db_helper.db = None
-        logger.info("Closed MongoDB connection")
+async def run_in_executor(fn, *args):
+    """
+    Run a synchronous Firestore call in a thread executor
+    so it doesn't block FastAPI's event loop.
+    """
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, fn, *args)
+
+
+def doc_to_dict(doc) -> dict:
+    """Convert a Firestore DocumentSnapshot to a plain dict with 'id' field."""
+    if not doc.exists:
+        return None
+    data = doc.to_dict() or {}
+    data["id"] = doc.id
+    # Remove internal Firestore references if any
+    return data
+
+
+def docs_to_list(query_snapshot) -> list:
+    """Convert a Firestore QuerySnapshot to a list of dicts."""
+    result = []
+    for doc in query_snapshot:
+        data = doc.to_dict() or {}
+        data["id"] = doc.id
+        result.append(data)
+    return result

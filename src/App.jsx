@@ -15,6 +15,7 @@ import Signup from "./pages/public/Signup";
 import Features from "./pages/public/Features";
 import About from "./pages/public/About";
 import Contact from "./pages/public/Contact";
+import FirebaseStatus from "./pages/public/FirebaseStatus";
 
 // ─── Protected App Pages ─────────────────────────────────────────────────────
 import Dashboard from "./pages/app/Dashboard";
@@ -33,6 +34,10 @@ import Profile from "./pages/app/Profile";
 import Notifications from "./pages/app/Notifications";
 import Settings from "./pages/app/Settings";
 import GenericPage from "./pages/app/GenericPage";
+// ─── Module 1 Pages ──────────────────────────────────────────────────────────
+import SchemeFinder from "./pages/app/SchemeFinder";
+import EligibilityChecker from "./pages/app/EligibilityChecker";
+import BenefitsTracker from "./pages/app/BenefitsTracker";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // App Route Tree
@@ -82,6 +87,7 @@ function App() {
             {/* ── Auth Routes (no layout wrapper) ── */}
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/firebase-status" element={<FirebaseStatus />} />
             <Route
                   path="/disaster-relief"
                   element={<DisasterRelief />}
@@ -118,14 +124,17 @@ function App() {
                 <Route path="/dashboard/settings" element={<Settings />} />
 
                 {/* Stubs (Coming Soon) */}
-                <Route path="/dashboard/eligibility" element={<GenericPage title="Eligibility Checker" description="Verify your eligibility across 100+ local and federal programs." icon={CheckSquare} />} />
-                <Route path="/dashboard/benefits" element={<GenericPage title="Benefits Tracker" description="Track the status and timeline of your claimed benefits." icon={Target} />} />
+                {/* ── Module 1: Scheme Finder, Eligibility Checker, Benefits Tracker ── */}
+                <Route path="/dashboard/scheme"      element={<SchemeFinder />} />
+                <Route path="/dashboard/eligibility" element={<EligibilityChecker />} />
+                <Route path="/dashboard/benefits"    element={<BenefitsTracker />} />
+
+                {/* Stubs (Coming Soon) */}
                 <Route path="/dashboard/analyses" element={<GenericPage title="My Analyses" description="Review past bills you've processed through CivicSync AI." icon={History} />} />
                 <Route path="/dashboard/saved" element={<GenericPage title="Saved Bills" description="Manage and organize legislation you're tracking." icon={Bookmark} />} />
                 <Route path="/dashboard/reports" element={<GenericPage title="Reports & Analytics" description="Generate deep insights and export PDF/CSV data." icon={BarChart2} />} />
                 <Route path="/dashboard/archive" element={<GenericPage title="Document Vault" description="All your uploaded bills, documents, and processed analyses." icon={History} />} />
                 <Route path="/dashboard/support" element={<GenericPage title="Help Center" description="Documentation, FAQs, and direct support from the CivicSync team." icon={CheckSquare} />} />
-                <Route path="/dashboard/scheme" element={<GenericPage title="Scheme Finder" description="Discover government schemes and programs tailored to your profile." icon={Search} />} />
 
               </Route>
             </Route>

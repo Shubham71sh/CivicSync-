@@ -1,25 +1,14 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
-from dotenv import load_dotenv
-import os
+"""
+DEPRECATED: This module previously used SQLAlchemy.
+All database operations now use Firebase Firestore via app.config.database.
+This stub is kept for backward compatibility in case any old code imports from here.
+"""
 
-load_dotenv()
+# Re-export Firestore helpers so any legacy imports still work
+from app.config.database import get_col, doc_to_dict, docs_to_list  # noqa: F401
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-engine = create_engine(DATABASE_URL)
-
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
-)
-
-Base = declarative_base()
 
 def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    """Deprecated: Returns Firestore collection accessor. Use get_col() instead."""
+    from app.core.firebase import get_db as _get_firestore_db
+    return _get_firestore_db()
