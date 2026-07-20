@@ -245,4 +245,17 @@ export const analyzeReport = async (reportId) => {
   }
 };
 
+// ============================
+// Get Government Schemes
+// ============================
+export const getSchemes = async () => {
+  try {
+    const response = await API.get("/schemes");
+    return response.data;
+  } catch (error) {
+    console.error("getSchemes error:", error);
+    return [];
+  }
+};
+
 export default API;
