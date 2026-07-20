@@ -33,7 +33,7 @@ def verify_claim_with_ai(text: str, url: Optional[str] = None) -> Dict[str, Any]
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-flash-lite-latest",
             contents=prompt
         )
         response_text = response.text.strip()

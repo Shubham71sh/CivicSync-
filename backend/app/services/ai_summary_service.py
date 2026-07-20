@@ -39,7 +39,7 @@ def generate_bill_analysis(text: str, file_name: str) -> Dict[str, Any]:
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-flash-lite-latest",
             contents=prompt
         )
         
