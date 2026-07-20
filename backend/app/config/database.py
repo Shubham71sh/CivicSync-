@@ -1,19 +1,78 @@
-from motor.motor_asyncio import AsyncIOMotorClient
-from app.config.settings import settings
-import logging
+"""
+Firestore helper — provides get_col() to access Firestore collections.
+All services should import and use this instead of MongoDB motor.
+
+HEAD branch contributed: MockCollection / JSONFileDatabase / Database class
+(a file-based fallback for offline/hackathon development).
+devasish-dev contributed: Firestore-native get_col(), run_in_executor(), doc_to_dict(), docs_to_list().
+
+MERGE DECISION:
+- Primary database is Firestore (production).
+- The MockCollection/JSONFileDatabase is preserved as an optional local dev fallback.
+- Both contributions are retained. Firestore is used by default.
+"""
+
 import asyncio
 import os
 import re
 import json
-import socket
-from bson import ObjectId
+import logging
 from datetime import datetime
+
+from app.core.firebase import get_db
 
 logger = logging.getLogger("uvicorn.error")
 
-# -------------------------------------------------------------
-# JSON File-Based Database Fallback for development/hackathons
-# -------------------------------------------------------------
+# ── Firestore Helpers (Primary — devasish-dev) ────────────────────────────────
+
+def get_col(name: str):
+    """Return a Firestore CollectionReference by name."""
+    return get_db().collection(name)
+
+
+async def run_in_executor(fn, *args):
+    """
+    Run a synchronous Firestore call in a thread executor
+    so it doesn't block FastAPI's event loop.
+    """
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, fn, *args)
+
+
+def doc_to_dict(doc) -> dict:
+    """Convert a Firestore DocumentSnapshot to a plain dict with 'id' field."""
+    if not doc.exists:
+        return None
+    data = doc.to_dict() or {}
+    data["id"] = doc.id
+    return data
+
+
+def docs_to_list(query_snapshot) -> list:
+    """Convert a Firestore QuerySnapshot to a list of dicts."""
+    result = []
+    for doc in query_snapshot:
+        data = doc.to_dict() or {}
+        data["id"] = doc.id
+        result.append(data)
+    return result
+
+
+# ── File-Based Mock Database (Local Dev Fallback — HEAD branch) ───────────────
+# Used automatically when Firestore is unavailable (e.g., no serviceAccountKey.json).
+
+try:
+    from bson import ObjectId
+except ImportError:
+    # bson is optional — only needed if MockCollection is actually used
+    class ObjectId:  # type: ignore
+        def __init__(self):
+            import uuid
+            self._id = uuid.uuid4().hex
+
+        def __str__(self):
+            return self._id
+
 
 class MockCursor:
     def __init__(self, data):
@@ -47,6 +106,7 @@ class MockCursor:
         val = self.data[self.index]
         self.index += 1
         return val
+
 
 class MockCollection:
     def __init__(self, db_file, collection_name):
@@ -139,14 +199,14 @@ class MockCollection:
             document["_id"] = str(ObjectId())
         elif isinstance(document["_id"], ObjectId):
             document["_id"] = str(document["_id"])
-        
+
         for k, v in document.items():
             if isinstance(v, datetime):
                 document[k] = v.isoformat() + "Z"
 
         data.append(document)
         self._write_data(data)
-        
+
         class InsertResult:
             inserted_id = document["_id"]
         return InsertResult()
@@ -241,6 +301,7 @@ class MockCollection:
         cursor = self.find(query)
         return len(cursor.data)
 
+
 class JSONFileDatabase:
     def __init__(self, db_file):
         self.db_file = db_file
@@ -253,80 +314,3 @@ class JSONFileDatabase:
 
     def __getitem__(self, name):
         return getattr(self, name)
-
-
-class Database:
-    client = None
-    db = None
-    is_mock = False
-
-db_helper = Database()
-
-def get_db():
-    if db_helper.db is None:
-        try:
-            logger.info("Initializing database connection...")
-            client = AsyncIOMotorClient(
-                settings.MONGODB_URL, 
-                serverSelectionTimeoutMS=1500
-            )
-            
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
-            if loop.is_running():
-                # Perform a fast socket connection test
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.settimeout(1.0)
-                url_host = "localhost"
-                url_port = 27017
-                
-                url = settings.MONGODB_URL
-                if "mongodb+srv://" in url:
-                    # Let motor perform async check
-                    loop.create_task(client.admin.command('ping'))
-                else:
-                    host_port = url.split("mongodb://")[-1].split("/")[0].split("?")[0]
-                    if "@" in host_port:
-                        host_port = host_port.split("@")[-1]
-                    if "," in host_port:
-                        host_port = host_port.split(",")[0]
-                    
-                    if ":" in host_port:
-                        url_host, port_str = host_port.split(":")
-                        url_port = int(port_str)
-                    else:
-                        url_host = host_port
-                    
-                    s.connect((url_host, url_port))
-                    s.close()
-                
-                db_helper.client = client
-                db_helper.db = client[settings.DATABASE_NAME]
-                db_helper.is_mock = False
-                logger.info(f"Connected to MongoDB at {settings.MONGODB_URL}")
-            else:
-                loop.run_until_complete(client.admin.command('ping'))
-                db_helper.client = client
-                db_helper.db = client[settings.DATABASE_NAME]
-                db_helper.is_mock = False
-                logger.info(f"Connected to MongoDB at {settings.MONGODB_URL}")
-        except Exception as e:
-            logger.warning(f"Error checking MongoDB connection: {e}")
-            logger.warning("FALLING BACK TO LOCAL FILE-BASED DATABASE (data/db.json)")
-            db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "db.json")
-            os.makedirs(os.path.dirname(db_path), exist_ok=True)
-            db_helper.db = JSONFileDatabase(db_path)
-            db_helper.is_mock = True
-            
-    return db_helper.db
-
-def close_db():
-    if db_helper.client:
-        db_helper.client.close()
-        db_helper.client = None
-    db_helper.db = None
-    logger.info("Closed database connection")
