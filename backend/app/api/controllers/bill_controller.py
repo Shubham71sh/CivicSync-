@@ -7,6 +7,7 @@ from app.config.database import get_db
 from app.services.pdf_service import extract_text_from_pdf
 from app.services.ai_summary_service import generate_bill_analysis
 from typing import Dict, Any, Optional
+import traceback
 
 class BillController:
     @staticmethod
@@ -57,12 +58,15 @@ class BillController:
         try:
             analysis = generate_bill_analysis(extracted_text, file.filename)
         except Exception as e:
+            traceback.print_exc()
+
             if os.path.exists(file_path):
                 os.remove(file_path)
+
             raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"AI Summarization failed: {str(e)}"
-            )
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"AI Summarization failed: {str(e)}"
+        )
 
         # Store in MongoDB using update_one with upsert=True matching by billNumber
         db = get_db()
