@@ -17,7 +17,8 @@ from app.api.routes import bills, compare, fake_news
 # ── Module 1 routers (Citizen Portal — Firebase) ─────────────────────────────
 from app.routers import (
     auth, citizen, schemes, benefits, notifications,
-    roadmap, chat, gps, dashboard, analytics
+    roadmap, chat, gps, dashboard, analytics,
+    disaster_schemes
 )
 
 # ── Module 2 routers (Disaster Relief Reports) ───────────────────────────────
@@ -107,6 +108,7 @@ app.include_router(analytics.router, prefix="/api")
 # Registered at /reports (frontend api.js calls http://127.0.0.1:8000/reports/...)
 
 app.include_router(reports.router)
+app.include_router(disaster_schemes.router)
 
 
 # ── Module 3 Routes (Transparency Engine) ────────────────────────────────────

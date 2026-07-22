@@ -122,19 +122,8 @@ export const createReport = async (data) => {
 };
 
 export const checkEligibility = async (reportId) => {
-  try {
-    const response = await API.post(`/reports/${reportId}/eligibility`);
-    return response.data;
-  } catch (error) {
-    return {
-      success: true,
-      eligibility: {
-        is_eligible: true,
-        scheme_name: "PM Disaster Relief Fund",
-        reason: "High damage percentage verified by AI analysis"
-      }
-    };
-  }
+  const response = await API.post(`/reports/${reportId}/eligibility`);
+  return response.data;
 };
 
 export const saveDocuments = async (reportId) => {
@@ -248,13 +237,24 @@ export const analyzeReport = async (reportId) => {
 // ============================
 // Get Government Schemes
 // ============================
-export const getSchemes = async () => {
+export const getSchemes = async (
+  disasterType,
+  damagePercent,
+  state
+) => {
   try {
-    const response = await API.get("/schemes");
-    return response.data;
+    const response = await API.get("/reports/schemes", {
+      params: {
+        disaster: disasterType,
+        damage: damagePercent,
+        state: state,
+      },
+    });
+
+    return response.data.recommended;
   } catch (error) {
-    console.error("getSchemes error:", error);
-    return [];
+    console.error("getSchemes Error:", error);
+    throw error;
   }
 };
 

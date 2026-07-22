@@ -96,7 +96,7 @@ useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const handleEligibility = async () => {
+ const handleEligibility = async () => {
   try {
     const result = await checkEligibility(reportId);
 
@@ -111,7 +111,6 @@ useEffect(() => {
     alert("Eligibility check failed");
   }
 };
-
 
 const handleDocuments = async () => {
   try {
@@ -192,10 +191,10 @@ const handleGovernmentSchemes = async () => {
 
     console.log("Selected Disaster:", selectedDisaster);
     console.log("Analysis:", analysisData);
-    console.log("damage =", analysisData?.analysis?.damage_percent);
+    console.log("damage =", analysisData?.damage_percent);
 
-    if (!analysisData) {
-    console.log("No analysis");
+    if (!analysisData || analysisData.damage_percent == null) {
+    console.log("Analysis data missing");
     return;
 }
 
@@ -208,8 +207,10 @@ const handleGovernmentSchemes = async () => {
     console.log("API RESULT");
     console.log(result);
 
+    console.log("Full Result:", JSON.stringify(result, null, 2));
+
     flushSync(() => {
-    setGovernmentSchemes(result.schemes || []);
+    setGovernmentSchemes(result);
 });
 
 goNext();
@@ -259,7 +260,7 @@ console.log("Government Schemes State:", governmentSchemes);
 
 const firstScheme = governmentSchemes?.[0];
 
-const reliefAmount = firstScheme?.amount || "Not Available";
+const reliefAmount = firstScheme?.reliefAmount || "Not Available";
 
 const matchedSchemes = governmentSchemes?.length || 0;
 
@@ -287,7 +288,7 @@ const officerNote =
 
 const selectedScheme =
   eligibilityData?.scheme_name ||
-  firstScheme?.name ||
+  firstScheme?.schemeName ||
   "Scheme Pending";
 
 

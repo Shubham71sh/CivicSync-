@@ -25,7 +25,7 @@ def check_eligibility(damage_percent):
                 "Residence Proof"
             ],
 
-            "timeline": "7 - 14 Days",
+            "timeline": "7-14 Days",
 
             "status": "Approved for Application"
         }
@@ -53,7 +53,7 @@ def check_eligibility(damage_percent):
                 "Bank Passbook"
             ],
 
-            "timeline": "10 - 20 Days",
+            "timeline": "10-20 Days",
 
             "status": "Eligible"
         }
@@ -62,7 +62,7 @@ def check_eligibility(damage_percent):
         return {
             "is_eligible": False,
             "scheme_name": "Not Eligible",
-            "reason": "Damage is below eligibility threshold",
+            "reason": "Damage below eligibility threshold",
 
             "amount": "₹0",
             "department": "-",
@@ -70,9 +70,7 @@ def check_eligibility(damage_percent):
             "confidence": 98,
 
             "benefits": [],
-
             "documents": [],
-
             "timeline": "-",
 
             "status": "Rejected"

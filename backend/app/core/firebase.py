@@ -25,6 +25,9 @@ def _init_firebase():
     sa_path = os.path.join(os.path.dirname(__file__), "..", "..", "serviceAccountKey.json")
     sa_path = os.path.abspath(sa_path)
 
+    print("Firebase Key Path:", sa_path)
+    print("Exists:", os.path.exists(sa_path))
+
     try:
         if os.path.exists(sa_path):
             cred = credentials.Certificate(sa_path)
