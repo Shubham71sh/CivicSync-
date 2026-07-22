@@ -18,6 +18,7 @@ from app.schemas.report import ReportCreate
 from app.config.database import get_col
 from app.services.ai_service import analyze_disaster
 from app.services.eligibility_service import check_eligibility
+from app.services.disaster_scheme_service import get_disaster_schemes
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
@@ -149,12 +150,10 @@ async def eligibility_checker(report_id: str):
     result = check_eligibility(analysis["damage_percent"])
 
     eligibility_data = {
-        "report_id": report_id,
-        "is_eligible": result["is_eligible"],
-        "scheme_name": result["scheme_name"],
-        "reason": result["reason"],
-        "checked_at": _now(),
-    }
+    "report_id": report_id,
+    **result,
+    "checked_at": _now(),
+}
 
     await loop.run_in_executor(
         None,
@@ -167,27 +166,22 @@ async def eligibility_checker(report_id: str):
     }
 
 
-@router.get("/")
-async def get_all_reports():
-    loop = asyncio.get_event_loop()
-    docs = await loop.run_in_executor(None, lambda: list(get_col("reports").stream()))
-    reports = []
-    for doc in docs:
-        data = doc.to_dict()
-        data["report_id"] = doc.id
-        reports.append(data)
+@router.get("/schemes")
+async def get_schemes(
+    disaster: str,
+    damage: int,
+    state: str = ""
+):
+    schemes = await get_disaster_schemes(
+        disaster,
+        damage,
+        state
+    )
 
     return {
         "success": True,
-        "count": len(reports),
-        "data": reports,
+        "recommended": schemes
     }
-
-
-@router.get("/{report_id}")
-async def get_report(report_id: str):
-    return await _get_report(report_id)
-
 
 @router.post("/{report_id}/documents")
 async def save_documents(report_id: str):
@@ -374,3 +368,4 @@ async def get_nearby_help(report_id: str):
         for i, d in enumerate(docs)
     ]
     return {"success": True, "services": services}
+

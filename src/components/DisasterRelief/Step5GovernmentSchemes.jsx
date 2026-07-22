@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CheckCircle, XCircle, ChevronRight, Award, Clock } from "lucide-react";
+import { ChevronRight, Clock } from "lucide-react";
 
 export default function Step5GovernmentSchemes({ schemes, onNext }) {
   console.log(
@@ -37,8 +37,19 @@ export default function Step5GovernmentSchemes({ schemes, onNext }) {
 
       {/* Horizontal Cards Grid */}
       <div className="space-y-4">
+      {(!schemes || schemes.length === 0) && (
+      <div className="p-10 rounded-xl border border-dashed border-gray-700 text-center">
+        <h3 className="text-lg font-bold text-white">
+          No Disaster Relief Scheme Found
+        </h3>
+
+        <p className="text-gray-400 mt-2">
+          No scheme matches the selected disaster, state and damage percentage.
+        </p>
+      </div>
+    )}
       <p className="text-red-500">
-  Total Schemes: {schemes.length}
+  Total Schemes: {schemes?.length || 0}
 </p>
         {(schemes || []).slice(0, 4).map((scheme) => {
           const isEligible = true;
@@ -61,24 +72,68 @@ export default function Step5GovernmentSchemes({ schemes, onNext }) {
                       ? "bg-[#22C55E]/10 text-[#22C55E]"
                       : "bg-[#EF4444]/10 text-[#EF4444]"
                   }`}>
-                    Eligible
+                    {isEligible ? "Eligible" : "Not Eligible"}
                   </span>
                   
                   {isEligible && (
                     <span className="text-[9px] text-[#A5A8B5] font-bold uppercase tracking-wider font-space-grotesk flex items-center gap-1">
                       <Clock className="w-3 h-3 text-[#F4C95D]" />
-                      {scheme.processing_time || "3-7 Days"}
+                      {scheme.processingDays || 7} Days
                     </span>
                   )}
                 </div>
 
                 <h4 className="text-sm font-bold text-white font-poppins leading-tight">
-                  {scheme.name}
+                  {scheme.schemeName}
                 </h4>
 
                 <p className="text-[11px] text-[#A5A8B5] leading-relaxed max-w-xl font-inter">
-                  <span className="font-semibold text-[#F4C95D]">Reason:</span> {scheme.benefit}
+                  <span className="font-semibold text-[#F4C95D]">Reason:</span> {scheme.description}
                 </p>
+                <div className="grid grid-cols-2 gap-3 mt-3 text-xs">
+
+                  <div>
+                    <span className="text-[#A5A8B5]">Damage Range</span>
+                    <p className="text-white font-semibold">
+                      {scheme.minDamage}% - {scheme.maxDamage}%
+                    </p>
+                  </div>
+
+                  <div>
+                    <span className="text-[#A5A8B5]">Authority</span>
+                    <p className="text-white font-semibold">
+                      {scheme.authority}
+                    </p>
+                  </div>
+
+                  <div className="mt-3">
+                    <p className="text-[#F4C95D] text-xs font-semibold">
+                      Required Documents
+                    </p>
+
+                    <ul className="mt-1 space-y-1">
+                      {(scheme.requiredDocuments || []).map((doc) => (
+                        <li key={doc} className="text-xs text-[#A5A8B5]">
+                          • {doc}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="mt-3">
+                    <p className="text-[#F4C95D] text-xs font-semibold">
+                      Benefits
+                    </p>
+
+                    <ul className="mt-1 space-y-1">
+                      {(scheme.benefits || []).map((item) => (
+                        <li key={item} className="text-xs text-[#A5A8B5]">
+                          • {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                </div>
               </div>
 
               {/* Right Column: Benefit Amount & Apply */}
@@ -86,7 +141,9 @@ export default function Step5GovernmentSchemes({ schemes, onNext }) {
                 <div className="text-left md:text-right">
                   <span className="text-[9px] text-[#A5A8B5] font-bold uppercase tracking-wider block font-poppins">Benefit Value</span>
                   <span className="text-lg font-bold text-[#F4C95D] font-space-grotesk block mt-0.5">
-                    {scheme.amount}
+                    ₹{scheme.reliefAmount
+  ? scheme.reliefAmount.toLocaleString()
+  : "N/A"}
                   </span>
                 </div>
 

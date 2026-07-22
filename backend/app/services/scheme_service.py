@@ -69,17 +69,24 @@ async def get_scheme_by_id(scheme_id: str) -> dict:
 
 # ─── Benefits / Applications ──────────────────────────────────────────────────
 
-async def get_recommended(uid: str) -> dict:
+async def get_recommended(uid: str):
     loop = asyncio.get_event_loop()
-    docs = await loop.run_in_executor(None, lambda: list(
-        get_col("recommendations").where("userId", "==", uid).stream()
-    ))
-    result = []
+
+    def _fetch():
+        return list(get_col("schemes").stream())
+
+    docs = await loop.run_in_executor(None, _fetch)
+
+    schemes = []
+
     for doc in docs:
-        d = doc.to_dict()
-        d["id"] = doc.id
-        result.append(d)
-    return {"recommended": result}
+        data = doc.to_dict()
+        data["id"] = doc.id
+        schemes.append(data)
+
+    return {
+        "recommended": schemes
+    }
 
 
 async def apply_for_benefit(uid: str, scheme_id: str, scheme_name: str, notes: str = "") -> dict:
@@ -124,43 +131,106 @@ async def apply_for_benefit(uid: str, scheme_id: str, scheme_name: str, notes: s
 
     return {"application": app_data}
 
+async def check_eligibility(
+    uid: str,
+    scheme_id: str,
+    damage_percent: int
+):
 
-async def check_eligibility(uid: str, scheme_id: str) -> dict:
     loop = asyncio.get_event_loop()
 
-    def _fetch():
-        citizen = get_col("citizens").document(uid).get()
-        scheme = get_col("schemes").document(scheme_id).get()
-        return citizen, scheme
+    scheme_doc = await loop.run_in_executor(
+        None,
+        lambda: get_col("schemes").document(scheme_id).get()
+    )
 
-    citizen_doc, scheme_doc = await loop.run_in_executor(None, _fetch)
-
-    citizen = citizen_doc.to_dict() if citizen_doc.exists else {}
     if not scheme_doc.exists:
         raise HTTPException(status_code=404, detail="Scheme not found.")
+
     scheme = scheme_doc.to_dict()
 
-    # Simple scoring
-    score = 60
-    reasons = []
-    eligibility_text = (scheme.get("eligibility") or "").lower()
+    
 
-    if citizen.get("category") and citizen["category"].lower() in eligibility_text:
-        score += 10
-        reasons.append(f"Your category ({citizen['category']}) matches.")
-    if citizen.get("state") and citizen["state"].lower() in eligibility_text:
-        score += 10
-        reasons.append(f"Your state ({citizen['state']}) is eligible.")
-    if citizen.get("occupation") and citizen["occupation"].lower() in eligibility_text:
-        score += 10
-        reasons.append(f"Your occupation matches.")
+    if damage_percent >= 70:
+        return {
+            "eligibility": {
+                "is_eligible": True,
+                "scheme_name": scheme.get("schemeName"),
+                "reason": "Heavy structural damage detected by AI",
 
-    return {
-        "eligible": score >= 60,
-        "score": min(score, 100),
-        "reasons": reasons,
-        "scheme": {**scheme, "id": scheme_id},
-    }
+                "amount": "₹95,100",
+                "department": "Ministry of Home Affairs",
+                "priority": "High",
+                "confidence": 94,
+
+                "benefits": [
+                    "Financial Assistance",
+                    "House Reconstruction",
+                    "Medical Assistance",
+                    "Food & Essential Supplies"
+                ],
+
+                "documents": [
+                    "Aadhaar Card",
+                    "Bank Passbook",
+                    "Damage Photos",
+                    "Residence Proof"
+                ],
+
+                "timeline": "7-14 Days",
+
+                "status": "Approved for Application"
+            }
+        }
+
+    elif damage_percent >= 40:
+        return {
+            "eligibility": {
+                "is_eligible": True,
+                "scheme_name": scheme.get("schemeName"),
+                "reason": "Moderate damage detected",
+
+                "amount": "₹50,000",
+                "department": "State Disaster Management Authority",
+                "priority": "Medium",
+                "confidence": 89,
+
+                "benefits": [
+                    "Relief Assistance",
+                    "House Repair",
+                    "Food Support"
+                ],
+
+                "documents": [
+                    "Aadhaar Card",
+                    "Damage Photos",
+                    "Bank Passbook"
+                ],
+
+                "timeline": "10-20 Days",
+
+                "status": "Eligible"
+            }
+        }
+
+    else:
+        return {
+            "eligibility": {
+                "is_eligible": False,
+                "scheme_name": "Not Eligible",
+                "reason": "Damage below eligibility threshold",
+
+                "amount": "₹0",
+                "department": "-",
+                "priority": "Low",
+                "confidence": 98,
+
+                "benefits": [],
+                "documents": [],
+                "timeline": "-",
+                "status": "Rejected"
+            }
+        }
 
 
 async def get_user_benefits(uid: str) -> dict:

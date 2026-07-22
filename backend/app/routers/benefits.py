@@ -30,7 +30,11 @@ async def check_eligibility(
     body: CheckEligibilityRequest,
     current_user: dict = Depends(get_current_user),
 ):
-    result = await scheme_service.check_eligibility(current_user["uid"], body.schemeId)
+    result = await scheme_service.check_eligibility(
+    current_user["uid"],
+    body.schemeId,
+    body.damagePercent
+)
     return {"success": True, **result}
 
 

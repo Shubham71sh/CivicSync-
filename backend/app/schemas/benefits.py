@@ -27,7 +27,7 @@ class UpdateBenefitStatusRequest(BaseModel):
 
 class CheckEligibilityRequest(BaseModel):
     schemeId: str
-
+    damagePercent: int
 
 class EligibilityResult(BaseModel):
     eligible: bool
