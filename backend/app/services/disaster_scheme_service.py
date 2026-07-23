@@ -10,15 +10,17 @@ async def get_disaster_schemes(disaster_type, damage_percent, state):
 
         matched = []
 
+        req_type = (disaster_type or "").lower().replace("_", "").replace(" ", "")
+
         for doc in docs:
             scheme = doc.to_dict()
             scheme["id"] = doc.id
 
+            d_type = (scheme.get("disasterType") or "").lower().replace("_", "").replace(" ", "")
+
+            # Match disaster type (flood, fire, earthquake, cyclone, landslide, heavyrain, etc.)
             if (
-                scheme.get("disasterType", "").lower() == disaster_type.lower()
-                and scheme.get("state", "").lower() == state.lower()
-                and damage_percent >= scheme.get("minDamage", 0)
-                and damage_percent <= scheme.get("maxDamage", 100)
+                (d_type in req_type or req_type in d_type or d_type == req_type)
                 and scheme.get("active", True)
             ):
                 matched.append(scheme)
@@ -27,4 +29,4 @@ async def get_disaster_schemes(disaster_type, damage_percent, state):
 
     result = await loop.run_in_executor(None, fetch)
 
-    return result
+    return result
