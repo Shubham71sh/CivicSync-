@@ -30,7 +30,7 @@ def _init_firebase():
             cred = credentials.Certificate(sa_path)
             _firebase_app = firebase_admin.initialize_app(cred, {
                 "projectId": "civic-sync-cosmic",
-                "storageBucket": "civic-sync-cosmic.firebasestorage.app",
+                "storageBucket": "civic-sync-cosmic.appspot.com",
             })
             logger.info("✅ Firebase Admin initialized with service account key.")
         else:
@@ -40,7 +40,7 @@ def _init_firebase():
                 cred = credentials.Certificate(adc_path)
                 _firebase_app = firebase_admin.initialize_app(cred, {
                     "projectId": "civic-sync-cosmic",
-                    "storageBucket": "civic-sync-cosmic.firebasestorage.app",
+                    "storageBucket": "civic-sync-cosmic.appspot.com",
                 })
                 logger.info("✅ Firebase Admin initialized with GOOGLE_APPLICATION_CREDENTIALS.")
             else:
@@ -48,7 +48,7 @@ def _init_firebase():
                 # locally with 'firebase emulators' or within GCP environment)
                 _firebase_app = firebase_admin.initialize_app(options={
                     "projectId": "civic-sync-cosmic",
-                    "storageBucket": "civic-sync-cosmic.firebasestorage.app",
+                    "storageBucket": "civic-sync-cosmic.appspot.com",
                 })
                 logger.warning(
                     "⚠️  Firebase Admin initialized WITHOUT credentials. "
