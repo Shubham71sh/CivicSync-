@@ -16,20 +16,97 @@ def generate_bill_analysis(text: str, file_name: str) -> Dict[str, Any]:
     truncated_text = text[:30000]
 
     prompt = f"""
-    You are an expert civic policy advisor and legislative analyst. Analyze the following legislative bill text (extracted from file '{file_name}').
-    
-    Generate a clean, structured JSON analysis containing:
-    1. title: A concise, descriptive official title for the bill.
-    2. billNumber: An official-looking bill number or reference code if found, or generate a realistic code if not (e.g., AB-1023, SB-492).
-    3. summary: A plain-language summary of the bill's objectives and key provisions (approx. 2-4 sentences).
-    4. keyPoints: An array of 3-5 distinct bullet points highlighting key clauses or regulations.
-    5. impactScore: An integer from 1 to 100 representing the breadth and magnitude of the policy's impact on citizens.
-    6. userImpact: A 1-2 sentence personalized impact analysis explaining how it affects typical working professionals, small businesses, or local communities.
-    7. tags: An array of 2-4 relevant keywords (e.g., ["privacy", "technology", "tax", "environment", "infrastructure"]).
-    
-    Provide ONLY valid JSON inside a code block. Do not write any introduction or explanation.
-    
+    You are a senior legislative analyst and public policy expert.
+
+    Analyze the following bill carefully.
+
+    Return ONLY valid JSON.
+
+    The response should be comprehensive (700-1200 words).
+
+    JSON Format:
+
+    {{
+    "title":"",
+    "billNumber":"",
+
+    "summary":[
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    ""
+    ],
+
+    "purpose":"",
+
+    "majorProvisions":[
+    "",
+    "",
+    "",
+    "",
+    ""
+    ],
+
+    "keyPoints":[
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    ""
+    ],
+
+    "benefits":[
+    "",
+    "",
+    ""
+    ],
+
+    "challenges":[
+    "",
+    "",
+    ""
+    ],
+
+    "stakeholders":[
+    "",
+    "",
+    "",
+    ""
+    ],
+
+    "financialImpact":"",
+
+    "userImpact":"",
+
+    "implementationTimeline":"",
+
+    "conclusion":"",
+
+    "impactScore":0,
+
+    "tags":[]
+    }}
+
+    Important Instructions:
+
+    - Summary MUST contain 8 detailed bullet points.
+    - Each bullet should contain 2-3 complete sentences.
+    - Explain provisions in simple language.
+    - Do not skip important clauses.
+    - Mention affected citizens whenever applicable.
+    - Mention financial implications.
+    - Mention long-term effects.
+    - Mention implementation challenges.
+
     Bill Text:
+
     {truncated_text}
     """
 
@@ -54,10 +131,19 @@ def generate_bill_analysis(text: str, file_name: str) -> Dict[str, Any]:
         
         analysis = json.loads(response_text)
         logger.info(f"Successfully generated AI summary for {file_name} using Gemini.")
+        
+        # Convert summary from list to formatted string
+        summary_raw = analysis.get("summary", "Summary of the legislative document.")
+        if isinstance(summary_raw, list):
+            # Join list items with double newlines for readable formatting
+            summary_str = "\n\n".join(summary_raw)
+        else:
+            summary_str = summary_raw
+        
         return {
             "title": analysis.get("title", file_name.replace(".pdf", "").title()),
             "billNumber": analysis.get("billNumber", "GEN-2026"),
-            "summary": analysis.get("summary", "Summary of the legislative document."),
+            "summary": summary_str,
             "keyPoints": analysis.get("keyPoints", ["Provisions of the policy document."]),
             "impactScore": int(analysis.get("impactScore", 50)),
             "userImpact": analysis.get("userImpact", "Moderate impact on registered citizens."),

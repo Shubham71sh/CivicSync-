@@ -1,6 +1,21 @@
+"""
+RAG Service — Firestore-based government document retrieval and ranking.
+
+Migration notes (MongoDB → Firebase):
+- Removed: `cursor = self.db.government_documents.find({}).limit(100)`
+  and `async for document in cursor:` (Motor async iterator pattern).
+- Replaced with: `asyncio.run_in_executor` wrapping a synchronous
+  `list(get_col("government_documents").limit(100).stream())` call.
+- The `db` constructor argument is accepted but ignored for backward
+  compatibility with ChatService which instantiates `RAGService(db)`.
+- All scoring and ranking logic is unchanged.
+"""
+
 import re
+import asyncio
 from collections import Counter
 from typing import Any, Dict, Iterable, List, Optional
+from app.config.database import get_col
 
 
 class RAGService:
@@ -23,8 +38,9 @@ class RAGService:
         "disabilityStatus", "veteranStatus", "studentStatus",
     )
 
-    def __init__(self, db):
-        self.db = db
+    def __init__(self, db=None):
+        # `db` is accepted for backward compatibility; Firestore is used directly.
+        pass
 
     @staticmethod
     def _tokens(text: Any) -> List[str]:
@@ -38,29 +54,26 @@ class RAGService:
 
     @staticmethod
     def _document_text(document: Dict[str, Any]) -> str:
-     values: Iterable[Any] = (
-        document.get("title", ""),
-        document.get("billNumber", ""),
-        document.get("summary", ""),
-        document.get("content", ""),
-        document.get("description", ""),
-        document.get("category", ""),
-        document.get("objectives", ""),
-        document.get("provisions", ""),
-        " ".join(document.get("tags", []) or []),
-        " ".join(document.get("keyPoints", []) or []),
-        " ".join(document.get("eligibilityCriteria", []) or []),
-        document.get("benefits", ""),
-        document.get("extractedText", ""),
-    )
+        values: Iterable[Any] = (
+            document.get("title", ""),
+            document.get("billNumber", ""),
+            document.get("summary", ""),
+            document.get("content", ""),
+            document.get("description", ""),
+            document.get("category", ""),
+            document.get("objectives", ""),
+            document.get("provisions", ""),
+            " ".join(document.get("tags", []) or []),
+            " ".join(document.get("keyPoints", []) or []),
+            " ".join(document.get("eligibilityCriteria", []) or []),
+            document.get("benefits", ""),
+            document.get("extractedText", ""),
+        )
+        return "\n".join(str(value) for value in values if value)
 
-     return "\n".join(
-        str(value) for value in values if value
-    )
     def _profile_keywords(self, profile: Optional[Dict[str, Any]]) -> List[str]:
         if not profile:
             return []
-
         profile_text = " ".join(
             str(profile.get(field, "")) for field in self.PROFILE_FIELDS
         )
@@ -96,25 +109,37 @@ class RAGService:
         user_id: Optional[str] = None,
         limit: int = 5,
     ) -> List[dict]:
-        """Rank a user's uploads and shared government records for their profile.
+        """
+        Rank government documents from Firestore for relevance to the question
+        and the citizen's profile.
 
-        Profile terms are deliberately used for scheme/eligibility questions. That
-        allows a question such as "What schemes am I eligible for?" to discover a
-        document which mentions the citizen's location or occupation even when the
-        question itself contains no document-specific keyword.
+        Profile terms are deliberately used for scheme/eligibility questions — this
+        allows "What schemes am I eligible for?" to discover a document mentioning
+        the citizen's location or occupation even when the question has no direct
+        document-specific keyword.
         """
         question_keywords = self._keywords(question)
         profile_keywords = self._profile_keywords(profile)
         eligibility_question = self._is_eligibility_question(question_keywords)
         focus_terms = list(dict.fromkeys(question_keywords + profile_keywords))
 
-        # Python ranking keeps MongoDB and the local JSON fallback consistent, and it
-        # includes the extracted PDF text rather than just an AI-generated summary.
-        cursor = self.db.government_documents.find({}).limit(100)
-        ranked_documents = []
+        # ── Fetch from Firestore (synchronous SDK wrapped in executor) ──────────
+        loop = asyncio.get_event_loop()
+        raw_docs = await loop.run_in_executor(
+            None,
+            lambda: list(get_col("government_documents").limit(100).stream()),
+        )
 
-        async for document in cursor:
-            is_owner = user_id is not None and str(document.get("userId")) == str(user_id)
+        # ── Rank in-memory (identical logic to the former MongoDB version) ──────
+        ranked_documents = []
+        for doc_snapshot in raw_docs:
+            document = doc_snapshot.to_dict() or {}
+            document["id"] = doc_snapshot.id
+
+            is_owner = (
+                user_id is not None
+                and str(document.get("userId")) == str(user_id)
+            )
             is_shared_government_record = (
                 document.get("isGovernmentDocument") is True
                 or document.get("visibility") == "government"
@@ -135,8 +160,6 @@ class RAGService:
             else:
                 score = question_score * 5 + profile_score
 
-            # Normal questions need a direct factual match. An eligibility question
-            # may also match a scheme document through eligibility rules alone.
             if score == 0 or (not eligibility_question and question_score == 0):
                 continue
 
@@ -156,7 +179,6 @@ class RAGService:
 
     async def get_sources(self, documents: List[dict]):
         sources = []
-
         for doc in documents:
             title = doc.get("title", "")
             number = doc.get("billNumber", "")
