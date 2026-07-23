@@ -33,6 +33,12 @@ class CompareController:
 
             bills_list = await loop.run_in_executor(None, _fetch)
             
+            # DEFENSIVE: Normalize summary fields to strings
+            for bill in bills_list:
+                summary = bill.get("summary", "")
+                if isinstance(summary, list):
+                    bill["summary"] = "\n\n".join(summary)
+            
             # If the user selects a second bill that is mocked or doesn't exist, we can fetch
             # a default one from database or use the same bill twice for demo safety.
             if len(bills_list) == 0:
