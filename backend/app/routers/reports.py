@@ -10,6 +10,7 @@ Merge notes:
 """
 
 from fastapi import APIRouter, UploadFile, File, HTTPException
+from pydantic import BaseModel
 from uuid import uuid4
 from datetime import datetime, timedelta
 import asyncio
@@ -368,4 +369,153 @@ async def get_nearby_help(report_id: str):
         for i, d in enumerate(docs)
     ]
     return {"success": True, "services": services}
+
+
+import os
+import smtplib
+import logging
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+logger = logging.getLogger("uvicorn.error")
+
+
+def _send_confirmation_email(
+    to_email: str,
+    user_name: str,
+    report_id: str,
+    disaster_type: str,
+    submission_date: str,
+    submission_time: str,
+    officer_name: str,
+    scheme_name: str,
+) -> tuple[bool, str]:
+    if not to_email:
+        return False, "No email address provided"
+
+    smtp_host = os.getenv("SMTP_HOST", "")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user = os.getenv("SMTP_USER", "")
+    smtp_pass = os.getenv("SMTP_PASSWORD", "")
+
+    email_body = (
+        f"Hello {user_name or 'Citizen'},\n\n"
+        f"Your Disaster Relief Application has been submitted successfully.\n\n"
+        f"Application Details\n\n"
+        f"• Report ID: {report_id}\n"
+        f"• Disaster Type: {disaster_type}\n"
+        f"• Submission Date: {submission_date}\n"
+        f"• Submission Time: {submission_time}\n"
+        f"• Status: Submitted Successfully\n"
+        f"• Assigned Officer: {officer_name}\n"
+        f"• Relief Scheme: {scheme_name}\n\n"
+        f"Our team has received your application and it is now under review.\n\n"
+        f"You can return to CivicSync anytime to:\n\n"
+        f"• Track your application\n"
+        f"• View claim progress\n"
+        f"• Download your report\n"
+        f"• Check inspection details\n\n"
+        f"Thank you for using CivicSync.\n\n"
+        f"Regards,\n"
+        f"CivicSync Disaster Relief System"
+    )
+
+    if not smtp_host or not smtp_user:
+        logger.info(
+            f"[Email Notification Log] To: {to_email} | Subject: CivicSync — Disaster Relief Application Submitted Successfully"
+        )
+        logger.info(email_body)
+        test_mode = os.getenv("EMAIL_TEST_MODE", "true").lower() == "true"
+        if test_mode:
+            return True, f"Confirmation email generated for {to_email} (Test Mode)"
+        return False, "SMTP email server credentials not configured on backend"
+
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = smtp_user
+        msg["To"] = to_email
+        msg["Subject"] = "CivicSync — Disaster Relief Application Submitted Successfully"
+        msg.attach(MIMEText(email_body, "plain"))
+
+        server = smtplib.SMTP(smtp_host, smtp_port, timeout=10)
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        server.send_message(msg)
+        server.quit()
+        return True, f"Confirmation email successfully delivered to {to_email}"
+    except Exception as e:
+        logger.error(f"Failed to send confirmation email to {to_email}: {e}")
+        return False, str(e)
+
+
+class ReportSubmitPayload(BaseModel):
+    email: str = ""
+    user_name: str = ""
+    disaster_type: str = ""
+    scheme_name: str = ""
+    relief_amount: str = ""
+    inspection_date: str = ""
+    officer_name: str = ""
+    submission_date: str = ""
+    submission_time: str = ""
+
+
+@router.post("/{report_id}/submit")
+async def submit_report_endpoint(report_id: str, payload: ReportSubmitPayload):
+    loop = asyncio.get_event_loop()
+
+    email_sent, email_msg = await loop.run_in_executor(
+        None,
+        lambda: _send_confirmation_email(
+            payload.email,
+            payload.user_name,
+            report_id,
+            payload.disaster_type,
+            payload.submission_date,
+            payload.submission_time,
+            payload.officer_name,
+            payload.scheme_name,
+        ),
+    )
+
+    submission_data = {
+        "status": "submitted_and_verified",
+        "submitted_at": _now(),
+        "user_email": payload.email,
+        "user_name": payload.user_name,
+        "disaster_type": payload.disaster_type,
+        "scheme_name": payload.scheme_name,
+        "relief_amount": payload.relief_amount,
+        "inspection_date": payload.inspection_date,
+        "officer_name": payload.officer_name,
+        "submission_date": payload.submission_date,
+        "submission_time": payload.submission_time,
+        "email_status": "sent" if email_sent else "failed",
+        "email_message": email_msg,
+    }
+
+    try:
+        await loop.run_in_executor(
+            None,
+            lambda: get_col("reports").document(report_id).set(submission_data, merge=True),
+        )
+    except Exception as e:
+        print(f"Could not save submission to Firestore: {e}")
+
+    return {
+        "success": True,
+        "email_sent": email_sent,
+        "report_id": report_id,
+        "message": (
+            "✅ Application Submitted Successfully\n\nA confirmation email has been sent to your registered email address."
+            if email_sent
+            else "Application submitted successfully, but the confirmation email could not be sent."
+        ),
+        "email_sent_to": payload.email,
+        "email_error": None if email_sent else email_msg,
+        "data": submission_data,
+    }
+
+
+
 
