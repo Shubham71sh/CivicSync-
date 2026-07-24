@@ -26,10 +26,13 @@ async def verify_firebase_token(id_token: str) -> Optional[dict]:
     # ── Primary: Firebase Admin SDK ──────────────────────────────────────────
     try:
         from firebase_admin import auth as fb_auth
+        from app.core.firebase import get_db
+        get_db()  # Ensure Firebase Admin SDK is initialized
         decoded = fb_auth.verify_id_token(id_token)
         return decoded
     except Exception as admin_err:
         logger.debug(f"Firebase Admin token verify failed ({admin_err}), trying REST fallback...")
+
 
     # ── Fallback: Firebase REST API token lookup ──────────────────────────────
     try:

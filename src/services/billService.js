@@ -104,3 +104,44 @@ export const deleteBill = async (billId) => {
     );
   }
 };
+
+/**
+ * Translate a bill's summary into a target language.
+ * @param {string} billId - The bill document ID
+ * @param {string} targetLanguage - Language code (e.g., 'hi', 'bn', 'ta', 'te', 'pa') or name (e.g., 'Hindi')
+ * @returns {{ language, translated_summary, cached }}
+ *
+ * Backend: POST /api/translation/translate
+ */
+export const translateBill = async (billId, targetLanguage) => {
+  try {
+    const { data } = await api.post("/translation/translate", {
+      bill_id: billId,
+      target_language: targetLanguage,
+    });
+    return data; // { language, translated_summary, cached }
+  } catch (error) {
+    console.error("[billService.translateBill] Error:", error);
+    throw new Error(
+      error.response?.data?.detail ||
+      "Translation failed. Please try again."
+    );
+  }
+};
+
+/**
+ * Get list of supported translation languages.
+ * @returns {string[]} - Array of language names
+ *
+ * Backend: GET /api/translation/languages
+ */
+export const getSupportedLanguages = async () => {
+  try {
+    const { data } = await api.get("/translation/languages");
+    return data; // ['English', 'Hindi', 'Bengali', 'Tamil', 'Telugu', 'Punjabi']
+  } catch (error) {
+    console.error("[billService.getSupportedLanguages] Error:", error);
+    return ["English", "Hindi", "Bengali", "Tamil", "Telugu", "Punjabi"];
+  }
+};
+

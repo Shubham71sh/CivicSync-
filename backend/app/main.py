@@ -12,7 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 # ── Module 3 routers (Transparency Engine) ───────────────────────────────────
-from app.api.routes import bills, compare, fake_news
+from app.api.routes import bills, compare, fake_news, translation
+
 
 # ── Module 1 routers (Citizen Portal — Firebase) ─────────────────────────────
 from app.routers import (
@@ -44,7 +45,9 @@ async def lifespan(app: FastAPI):
     try:
         # Initialize Firebase Admin + Firestore
         db = get_db()
-        logger.info("Firebase Admin SDK initialized.")
+        if db is None:
+            raise RuntimeError("Firestore client returned None from get_db().")
+        logger.info("✅ Firebase Admin SDK & Firestore client initialized.")
 
         # Seed schemes into Firestore
         seeded = await seed_schemes()
@@ -53,11 +56,13 @@ async def lifespan(app: FastAPI):
         else:
             logger.info("Schemes collection already seeded — skipping.")
     except Exception as e:
-        logger.error(f"Startup error: {e}")
+        logger.critical(f"❌ Startup error: {e}", exc_info=True)
+        raise RuntimeError(f"Application startup failed due to Firebase initialization error: {e}") from e
 
     yield
 
     logger.info("CivicSync FastAPI shutting down.")
+
 
 
 # ── App ───────────────────────────────────────────────────────────────────────
@@ -116,11 +121,14 @@ app.include_router(disaster_schemes.router)
 app.include_router(bills.router, prefix="/api")
 app.include_router(compare.router, prefix="/api")
 app.include_router(fake_news.router, prefix="/api")
+app.include_router(translation.router, prefix="/api")
 
 # Legacy bare mounts (frontend hits /bills, /chat, /fake-news directly)
 app.include_router(bills.router)
 app.include_router(compare.router)
 app.include_router(fake_news.router)
+app.include_router(translation.router)
+
 
 # Bare /chat endpoint — src/services/api.js calls http://127.0.0.1:8000/chat
 app.include_router(chat.router)
