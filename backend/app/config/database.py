@@ -27,7 +27,11 @@ logger = logging.getLogger("uvicorn.error")
 
 def get_col(name: str):
     """Return a Firestore CollectionReference by name."""
-    return get_db().collection(name)
+    db = get_db()
+    if db is None:
+        raise RuntimeError("Firestore client is None. Cannot access collection.")
+    return db.collection(name)
+
 
 
 async def run_in_executor(fn, *args):
