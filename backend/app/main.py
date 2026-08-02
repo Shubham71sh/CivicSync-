@@ -22,6 +22,9 @@ from app.routers import (
     disaster_schemes
 )
 
+# ── Module 4 routers (AI Finance + Scheme Notifications) ─────────────────────
+from app.routers import loan_analyzer, insurance_analyzer, scheme_notifications
+
 # ── Module 2 routers (Disaster Relief Reports) ───────────────────────────────
 from app.routers import reports
 
@@ -69,11 +72,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="CivicSync AI Backend",
-    version="3.0.0",
+    version="4.0.0",
     description=(
         "Module 1 (Citizen Portal — Firebase) + "
         "Module 2 (Disaster Relief) + "
-        "Module 3 (Transparency Engine — Gemini AI)"
+        "Module 3 (Transparency Engine — Gemini AI) + "
+        "Module 4 (AI Loan Analyzer, AI Insurance Analyzer, Scheme Notifications)"
     ),
     lifespan=lifespan,
 )
@@ -107,6 +111,13 @@ app.include_router(chat.router, prefix="/api")
 app.include_router(gps.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
+
+
+# ── Module 4 Routes (AI Finance + Scheme Notifications) ──────────────────────
+
+app.include_router(loan_analyzer.router, prefix="/api")
+app.include_router(insurance_analyzer.router, prefix="/api")
+app.include_router(scheme_notifications.router, prefix="/api")
 
 
 # ── Module 2 Routes (Disaster Relief) ────────────────────────────────────────
@@ -193,7 +204,8 @@ def root():
         "modules": (
             "Module 1 (Citizen Portal) + "
             "Module 2 (Disaster Relief) + "
-            "Module 3 (Transparency Engine)"
+            "Module 3 (Transparency Engine) + "
+            "Module 4 (AI Finance + Scheme Notifications)"
         ),
         "docs": "/docs",
     }

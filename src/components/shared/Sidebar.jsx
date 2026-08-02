@@ -28,7 +28,10 @@ import {
   Upload,
   LogOut,
   ChevronRight,
-  LifeBuoy
+  LifeBuoy,
+  ShieldCheck,
+  IndianRupee,
+  Sparkles
 } from "lucide-react";
 
 const navGroups = [
@@ -40,6 +43,8 @@ const navGroups = [
       { name: "Bill History", path: "/dashboard/bills", icon: FileText },
       { name: "Compare Bills", path: "/dashboard/compare", icon: GitCompare },
       { name: "AI Summary", path: "/dashboard/ai-summary", icon: FileText },
+      { name: "Loan Analyzer", path: "/dashboard/loan-analyzer", icon: IndianRupee },
+      { name: "Insurance Analyzer", path: "/dashboard/insurance-analyzer", icon: ShieldCheck },
       { name: "Corruption Detector", path: "/dashboard/fraud", icon: ShieldAlert },
       { name: "Civic GPS", path: "/dashboard/gps", icon: MapPin },
       { name: "Impact Simulator", path: "/dashboard/impact", icon: TrendingUp },
@@ -52,6 +57,7 @@ const navGroups = [
     { name: "Scheme Finder", path: "/dashboard/scheme", icon: Search },
     { name: "Eligibility Checker", path: "/dashboard/eligibility", icon: CheckSquare },
     { name: "Benefits Tracker", path: "/dashboard/benefits", icon: Target },
+    { name: "Scheme Alerts", path: "/dashboard/scheme-notifications", icon: Sparkles },
     { name: "Disaster Relief", path: "/dashboard/disaster-relief", icon: LifeBuoy },
     { name: "Townhall Events", path: "/dashboard/townhall", icon: Users },
   ]

@@ -124,6 +124,11 @@ def _init_firebase():
             _db = None
             raise
 
+    options = {"projectId": "civic-sync-cosmic"}
+    bucket_env = os.environ.get("FIREBASE_STORAGE_BUCKET")
+    if bucket_env:
+        options["storageBucket"] = bucket_env
+
     try:
         _db = fs_admin.client(_firebase_app)
 
@@ -131,7 +136,6 @@ def _init_firebase():
             raise RuntimeError("Firestore client is None.")
 
         logger.info("✅ Firestore client initialized.")
-
         return _db
 
     except Exception as e:
