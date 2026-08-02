@@ -25,31 +25,27 @@ def _init_firebase():
     sa_path = os.path.join(os.path.dirname(__file__), "..", "..", "serviceAccountKey.json")
     sa_path = os.path.abspath(sa_path)
 
+    options = {"projectId": "civic-sync-cosmic"}
+    bucket_env = os.environ.get("FIREBASE_STORAGE_BUCKET")
+    if bucket_env:
+        options["storageBucket"] = bucket_env
+
     try:
         if os.path.exists(sa_path):
             cred = credentials.Certificate(sa_path)
-            _firebase_app = firebase_admin.initialize_app(cred, {
-                "projectId": "civic-sync-cosmic",
-                "storageBucket": "civic-sync-cosmic.appspot.com",
-            })
+            _firebase_app = firebase_admin.initialize_app(cred, options)
             logger.info("✅ Firebase Admin initialized with service account key.")
         else:
             # Use GOOGLE_APPLICATION_CREDENTIALS env var or ADC
             adc_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "")
             if adc_path and os.path.exists(adc_path):
                 cred = credentials.Certificate(adc_path)
-                _firebase_app = firebase_admin.initialize_app(cred, {
-                    "projectId": "civic-sync-cosmic",
-                    "storageBucket": "civic-sync-cosmic.appspot.com",
-                })
+                _firebase_app = firebase_admin.initialize_app(cred, options)
                 logger.info("✅ Firebase Admin initialized with GOOGLE_APPLICATION_CREDENTIALS.")
             else:
                 # No credentials file — initialize with no-auth (works if running
                 # locally with 'firebase emulators' or within GCP environment)
-                _firebase_app = firebase_admin.initialize_app(options={
-                    "projectId": "civic-sync-cosmic",
-                    "storageBucket": "civic-sync-cosmic.appspot.com",
-                })
+                _firebase_app = firebase_admin.initialize_app(options=options)
                 logger.warning(
                     "⚠️  Firebase Admin initialized WITHOUT credentials. "
                     "Place serviceAccountKey.json in backend/ to enable full access."

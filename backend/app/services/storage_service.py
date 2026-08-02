@@ -32,13 +32,12 @@ def _do_upload(local_path: str, blob_name: str) -> str | None:
     """
     try:
         from firebase_admin import storage as fb_storage
-        bucket = fb_storage.bucket()
+        try:
+            bucket = fb_storage.bucket()
+        except Exception:
+            return None
 
         if not bucket or not bucket.name:
-            logger.warning(
-                "⚠️  Firebase Storage bucket is not configured. "
-                "Set storageBucket in Firebase Admin init options."
-            )
             return None
 
         blob = bucket.blob(blob_name)
@@ -52,10 +51,9 @@ def _do_upload(local_path: str, blob_name: str) -> str | None:
         return url
 
     except ImportError:
-        logger.warning("⚠️  firebase_admin.storage not available.")
         return None
     except Exception as e:
-        logger.warning(f"⚠️  Firebase Storage upload failed ({e}). Using local file fallback.")
+        logger.debug(f"Firebase Storage upload skipped: {e}")
         return None
 
 
@@ -87,7 +85,10 @@ async def delete_file_from_storage(blob_name: str) -> bool:
     def _do_delete():
         try:
             from firebase_admin import storage as fb_storage
-            bucket = fb_storage.bucket()
+            try:
+                bucket = fb_storage.bucket()
+            except Exception:
+                return False
             if not bucket or not bucket.name:
                 return False
             blob = bucket.blob(blob_name)
@@ -95,7 +96,7 @@ async def delete_file_from_storage(blob_name: str) -> bool:
             logger.info(f"🗑️  Deleted {blob_name} from Firebase Storage.")
             return True
         except Exception as e:
-            logger.warning(f"⚠️  Firebase Storage delete failed ({e}).")
+            logger.debug(f"Firebase Storage delete skipped: {e}")
             return False
 
     loop = asyncio.get_event_loop()
