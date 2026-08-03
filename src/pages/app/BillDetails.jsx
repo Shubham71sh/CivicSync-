@@ -1,9 +1,18 @@
 import { motion } from "framer-motion";
-import { FileText, ArrowLeft, Calendar, Hash, Shield, TrendingUp, Download, Loader2 } from "lucide-react";
+import { FileText, ArrowLeft, Calendar, Hash, Shield, TrendingUp, Download, Loader2, Globe, Copy, Check } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { getBillById } from "../../services/billService";
+import { getBillById, translateBill } from "../../services/billService";
 import clsx from "clsx";
+
+const LANGUAGES = [
+  { code: "en", name: "English" },
+  { code: "hi", name: "Hindi" },
+  { code: "bn", name: "Bengali" },
+  { code: "ta", name: "Tamil" },
+  { code: "te", name: "Telugu" },
+  { code: "pa", name: "Punjabi" },
+];
 
 const STATUS_CONFIG = {
   passed: { label: "Passed", color: "text-success", bg: "bg-success/10 border-success/20" },
@@ -18,6 +27,49 @@ export default function BillDetails() {
   const [bill, setBill] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // ── Multilingual Bill Intelligence ────────────────────────────────────────
+  const [selectedLang, setSelectedLang] = useState("en");
+  const [translating, setTranslating] = useState(false);
+  const [translatedSummary, setTranslatedSummary] = useState(null);
+  const [translationLangName, setTranslationLangName] = useState("English");
+  const [translationError, setTranslationError] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const handleTranslate = async (langCode = selectedLang) => {
+    if (!bill || !id) return;
+    if (langCode === "en") {
+      setTranslatedSummary(bill.summary || "");
+      setTranslationLangName("English");
+      setTranslationError("");
+      return;
+    }
+    setTranslating(true);
+    setTranslationError("");
+    try {
+      const result = await translateBill(id, langCode);
+      if (result && result.translated_summary) {
+        setTranslatedSummary(result.translated_summary);
+        setTranslationLangName(result.language || langCode);
+      } else {
+        setTranslationError("Translation response was empty.");
+      }
+    } catch (err) {
+      console.error("[BillDetails] Translation failed:", err);
+      setTranslationError(err.message || "Translation failed. Please try again.");
+    } finally {
+      setTranslating(false);
+    }
+  };
+
+  const handleCopy = () => {
+    const text = translatedSummary ?? bill?.summary ?? "";
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  // ─────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const fetchBillDetails = async () => {
@@ -139,18 +191,69 @@ export default function BillDetails() {
         </div>
       </motion.div>
 
-      {/* AI Summary */}
+      {/* AI Summary + Multilingual Translation */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
         className="p-6 rounded-3xl bg-[#171a21] border border-border"
       >
-        <h3 className="font-bold text-white mb-4 flex items-center gap-2">
-          <FileText className="w-5 h-5 text-accent" />
-          AI-Generated Summary
-        </h3>
-        <p className="text-textSecondary leading-relaxed">{bill.summary || "No summary available."}</p>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+          <h3 className="font-bold text-white flex items-center gap-2">
+            <FileText className="w-5 h-5 text-accent" />
+            AI-Generated Summary
+          </h3>
+          {/* Multilingual Controls */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Globe className="w-4 h-4 text-accent flex-shrink-0" />
+            <select
+              id="translation-language-select"
+              value={selectedLang}
+              onChange={(e) => {
+                const lang = e.target.value;
+                setSelectedLang(lang);
+                handleTranslate(lang);
+              }}
+              className="text-sm bg-[#12141d] border border-border text-white rounded-lg px-3 py-1.5 focus:outline-none focus:border-accent/50 cursor-pointer"
+            >
+              {LANGUAGES.map((lang) => (
+                <option key={lang.code} value={lang.code}>{lang.name}</option>
+              ))}
+            </select>
+            <button
+              id="translate-bill-btn"
+              onClick={() => handleTranslate(selectedLang)}
+              disabled={translating}
+              className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-accent/10 border border-accent/20 text-accent font-semibold hover:bg-accent/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {translating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+              {translating ? "Translating…" : "Translate"}
+            </button>
+            <button
+              id="copy-summary-btn"
+              onClick={handleCopy}
+              title="Copy summary"
+              className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-[#12141d] border border-border text-textSecondary hover:text-white hover:border-accent/30 transition-colors"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        </div>
+
+        {translationError && (
+          <p className="text-xs text-danger mb-3">{translationError}</p>
+        )}
+
+        {translatedSummary !== null && translationLangName !== "English" && (
+          <p className="text-xs text-textSecondary mb-2 flex items-center gap-1">
+            <Globe className="w-3 h-3 text-accent" />
+            Translated to {translationLangName}
+          </p>
+        )}
+
+        <p className="text-textSecondary leading-relaxed whitespace-pre-line">
+          {translatedSummary !== null ? translatedSummary : (bill.summary || "No summary available.")}
+        </p>
       </motion.div>
 
       {/* Key Points */}

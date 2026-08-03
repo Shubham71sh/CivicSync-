@@ -2,7 +2,8 @@ import { Link, useLocation } from "react-router-dom";
 import { 
   LayoutDashboard, MapPin, ShieldAlert, MessageSquare, TrendingUp, Archive as ArchiveIcon,
   Settings, HelpCircle, Menu, X, FileText, Search, Users, User, Bookmark, History, 
-  Bell, FileCheck, Target, GitCompare, BarChart2, CheckSquare, AlertTriangle
+  Bell, FileCheck, Target, GitCompare, BarChart2, CheckSquare, AlertTriangle,
+  ShieldCheck, IndianRupee, Sparkles
 } from "lucide-react";
 import { useState } from "react";
 import clsx from "clsx";
@@ -15,6 +16,8 @@ const navGroups = [
       { name: "Overview", path: "/dashboard", icon: LayoutDashboard },
       { name: "Bill Simplifier", path: "/bills", icon: FileText },
       { name: "Compare Bills", path: "/compare", icon: GitCompare },
+      { name: "Loan Analyzer", path: "/dashboard/loan-analyzer", icon: IndianRupee },
+      { name: "Insurance Analyzer", path: "/dashboard/insurance-analyzer", icon: ShieldCheck },
       { name: "Corruption Detector", path: "/fraud", icon: ShieldAlert },
       { name: "Civic GPS", path: "/gps", icon: MapPin },
       { name: "Impact Simulator", path: "/impact", icon: TrendingUp },
@@ -29,6 +32,7 @@ const navGroups = [
       { name: "Scheme Finder", path: "/scheme", icon: Search },
       { name: "Eligibility Checker", path: "/eligibility", icon: CheckSquare },
       { name: "Benefits Tracker", path: "/benefits", icon: Target },
+      { name: "Scheme Alerts", path: "/dashboard/scheme-notifications", icon: Sparkles },
       { name: "Townhall Events", path: "/townhall", icon: Users },
     ]
   },

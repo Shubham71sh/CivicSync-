@@ -18,6 +18,7 @@ build/
 *.local
 .env
 backend/.env
+backend/serviceAccountKey.json
 
 # Python
 __pycache__/
@@ -46,3 +47,10 @@ structure.txt
 *.njsproj
 *.sln
 *.sw?
+
+
+
+# Firebase Admin SDK
+backend/civic-sync-cosmic-firebase-adminsdk-fbsvc-ddcee060c2.json
+
+backend/civic-sync-cosmic-firebase-adminsdk-fbsvc-92503724f2.json

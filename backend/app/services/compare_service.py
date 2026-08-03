@@ -22,9 +22,15 @@ def compare_bills_with_ai(bills: List[Dict[str, Any]]) -> Dict[str, Any]:
     bills_context = []
     for idx, b in enumerate(bills):
         text_snippet = b.get("extractedText", "")[:10000] # truncate
+        
+        # DEFENSIVE: Convert summary from list to string if needed
+        summary = b.get('summary', '')
+        if isinstance(summary, list):
+            summary = "\n\n".join(summary)
+        
         bills_context.append(f"""
         Bill #{idx+1}: {b.get('title')} ({b.get('billNumber')})
-        Summary: {b.get('summary')}
+        Summary: {summary}
         Key Points: {', '.join(b.get('keyPoints', []))}
         Content Snippet:
         {text_snippet}
@@ -57,7 +63,7 @@ def compare_bills_with_ai(bills: List[Dict[str, Any]]) -> Dict[str, Any]:
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-flash-lite-latest",
             contents=prompt
         )
         response_text = response.text.strip()

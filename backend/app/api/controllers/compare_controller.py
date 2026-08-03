@@ -1,13 +1,15 @@
+import asyncio
 from fastapi import HTTPException, status
-from app.config.database import get_db
+from app.config.database import get_col
 from app.services.compare_service import compare_bills_with_ai
 from typing import List, Dict, Any
+
 
 class CompareController:
     @staticmethod
     async def compare_bills_flow(bill_ids: List[str]) -> Dict[str, Any]:
         """
-        Retrieves details of specified bills from MongoDB and calls compare_service to generate AI difference logs.
+        Retrieves details of specified bills from Firestore and calls compare_service to generate AI difference logs.
         """
         if len(bill_ids) < 2:
             raise HTTPException(
@@ -15,13 +17,27 @@ class CompareController:
                 detail="Must specify at least 2 bill IDs for side-by-side comparison."
             )
 
-        db = get_db()
+        loop = asyncio.get_event_loop()
         try:
-            # Query for the requested bill IDs
-            cursor = db.bills.find({"_id": {"$in": bill_ids}})
-            bills_list = []
-            async for doc in cursor:
-                bills_list.append(doc)
+            # Query for the requested bill IDs in Firestore
+            def _fetch():
+                docs = []
+                for b_id in bill_ids:
+                    doc = get_col("bills").document(b_id).get()
+                    if doc.exists:
+                        data = doc.to_dict()
+                        data["id"] = doc.id
+                        data["_id"] = doc.id
+                        docs.append(data)
+                return docs
+
+            bills_list = await loop.run_in_executor(None, _fetch)
+            
+            # DEFENSIVE: Normalize summary fields to strings
+            for bill in bills_list:
+                summary = bill.get("summary", "")
+                if isinstance(summary, list):
+                    bill["summary"] = "\n\n".join(summary)
             
             # If the user selects a second bill that is mocked or doesn't exist, we can fetch
             # a default one from database or use the same bill twice for demo safety.
