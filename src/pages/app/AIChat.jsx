@@ -231,7 +231,15 @@ export default function AIChat() {
     try {
       const recognition = new SpeechRecognition();
 
-      recognition.lang = selectedLang;
+      const langLocaleMap = {
+        "en": "en-US",
+        "hi": "hi-IN",
+        "pa": "pa-IN",
+        "bn": "bn-IN",
+        "te": "te-IN",
+      };
+
+      recognition.lang = langLocaleMap[selectedLang] || "en-US";
 
       recognition.continuous = false;
 
@@ -294,27 +302,34 @@ export default function AIChat() {
 
     window.speechSynthesis.cancel();
 
+    // Map short codes to full BCP-47 locale codes
+    const langLocaleMap = {
+      "en": "en-US",
+      "hi": "hi-IN",
+      "pa": "pa-IN",
+      "bn": "bn-IN",
+      "te": "te-IN",
+    };
+
+    const locale = langLocaleMap[selectedLang] || "en-US";
+
     setTimeout(() => {
-      const utterance =
-        new SpeechSynthesisUtterance(text);
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = locale;
 
-      utterance.lang = selectedLang;
+      const voices = window.speechSynthesis.getVoices();
+      const baseLang = locale.split("-")[0].toLowerCase();
 
-      const voices =
-        window.speechSynthesis.getVoices();
-
-      const voice = voices.find(
-        (v) =>
-          v.lang.toLowerCase() ===
-          selectedLang.toLowerCase()
-      );
+      // Try exact match first, then partial match on base language
+      const voice =
+        voices.find((v) => v.lang.toLowerCase() === locale.toLowerCase()) ||
+        voices.find((v) => v.lang.toLowerCase().startsWith(baseLang));
 
       if (voice) {
         utterance.voice = voice;
       }
 
       utterance.rate = 1;
-
       utterance.pitch = 1;
 
       utterance.onend = () => {
@@ -326,10 +341,7 @@ export default function AIChat() {
       };
 
       setActiveSpeakingId(id);
-
-      window.speechSynthesis.speak(
-        utterance
-      );
+      window.speechSynthesis.speak(utterance);
     }, 100);
   };
 
