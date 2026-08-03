@@ -112,22 +112,20 @@ class ChatService:
             sources = await self.rag.get_sources(documents)
 
             if not documents:
-                answer = (
-                    "No government document matching your request was found."
-                )
-                await self.memory.save_message(conversation_id, user_id, "user", question)
-                await self.memory.save_message(conversation_id, user_id, "bot", answer)
+                # No documents in DB — answer from AI knowledge directly
+                prompt = f"""You are CivicSync AI, a helpful Indian government schemes and civic assistant.
 
-                # Still generate a smart title for new conversations
-                if is_new_conversation:
-                    title = await asyncio.to_thread(_generate_title, question)
-                    await self.memory.rename_conversation(conversation_id, title)
+The user asked about: {question}
 
-                return {
-                    "conversation_id": conversation_id,
-                    "response": answer,
-                    "sources": [],
-                }
+Answer this question accurately using your knowledge about Indian government schemes, policies, laws and acts.
+
+Instructions:
+- Give a complete, helpful answer
+- Include eligibility, benefits, and how to apply if relevant
+- Always give a full answer — never say documents are not found
+- Respond in {language}
+"""
+                # Fall through to AI call below instead of returning early
 
             prompt = PromptBuilder.build(
                 profile, history, documents, question, language
@@ -137,17 +135,15 @@ class ChatService:
             # General Questions - answer directly
             prompt = f"""You are CivicSync AI, a helpful civic assistant.
 
-Answer the following question clearly and accurately.
-
 Question: {question}
 
 Instructions:
 - Answer directly and completely
-- If it is about a government scheme, law, or policy answer from your knowledge
+- If it is about a government scheme, law, or policy, answer from your knowledge
 - If it is a general knowledge question, answer normally
 - If it is a programming question, provide working code
-- Always give a full, useful answer — never say you cannot answer
-- Respond in {language}
+- Always give a full, useful answer
+- You MUST respond entirely in {language}. If {language} is Hindi, write the full response in Hindi (Devanagari script).
 """
 
         # ----------------------------------
