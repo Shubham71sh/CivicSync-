@@ -210,8 +210,10 @@ export default function AIChat() {
           "voiceschanged",
           handleVoicesChanged
         );
-
         window.speechSynthesis.cancel();
+        if (speakIntervalRef.current) {
+          clearInterval(speakIntervalRef.current);
+        }
       };
     }
   }, []);
@@ -291,18 +293,29 @@ export default function AIChat() {
     }
   };
 
+  const speakIntervalRef = useRef(null);
+
   const handleSpeak = (id, text) => {
     if (!("speechSynthesis" in window)) return;
 
+    // Stop if already speaking this message
     if (activeSpeakingId === id) {
       window.speechSynthesis.cancel();
+      if (speakIntervalRef.current) {
+        clearInterval(speakIntervalRef.current);
+        speakIntervalRef.current = null;
+      }
       setActiveSpeakingId(null);
       return;
     }
 
+    // Cancel any ongoing speech
     window.speechSynthesis.cancel();
+    if (speakIntervalRef.current) {
+      clearInterval(speakIntervalRef.current);
+      speakIntervalRef.current = null;
+    }
 
-    // Map short codes to full BCP-47 locale codes
     const langLocaleMap = {
       "en": "en-US",
       "hi": "hi-IN",
@@ -319,24 +332,34 @@ export default function AIChat() {
 
       const voices = window.speechSynthesis.getVoices();
       const baseLang = locale.split("-")[0].toLowerCase();
-
-      // Try exact match first, then partial match on base language
       const voice =
         voices.find((v) => v.lang.toLowerCase() === locale.toLowerCase()) ||
         voices.find((v) => v.lang.toLowerCase().startsWith(baseLang));
 
-      if (voice) {
-        utterance.voice = voice;
-      }
-
+      if (voice) utterance.voice = voice;
       utterance.rate = 1;
       utterance.pitch = 1;
 
+      // Chrome bug fix: resume every 10s to prevent auto-pause
+      speakIntervalRef.current = setInterval(() => {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+        if (!window.speechSynthesis.speaking) {
+          clearInterval(speakIntervalRef.current);
+          speakIntervalRef.current = null;
+        }
+      }, 10000);
+
       utterance.onend = () => {
+        clearInterval(speakIntervalRef.current);
+        speakIntervalRef.current = null;
         setActiveSpeakingId(null);
       };
 
       utterance.onerror = () => {
+        clearInterval(speakIntervalRef.current);
+        speakIntervalRef.current = null;
         setActiveSpeakingId(null);
       };
 
