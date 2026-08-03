@@ -75,8 +75,13 @@ export default function Step3AIAnalysis({
   const [progress, setProgress] = useState(0);
   const [isDone, setIsDone] = useState(false);
   const hasCalledComplete = useRef(false);
+  const analysisStarted = useRef(false);
+  
+const runAnalysis = async () => {
 
-  const runAnalysis = async () => {
+    if (analysisStarted.current) return;
+
+    analysisStarted.current = true;
 
     try {
 
@@ -86,22 +91,20 @@ export default function Step3AIAnalysis({
         console.log(JSON.stringify(result, null, 2));
 
         console.log("Analysis Data");
-console.log(result);
+        console.log(result);
 
-flushSync(() => {
-    setAnalysisData(result.analysis);
-});
+        flushSync(() => {
+            setAnalysisData(result.analysis);
+        });
 
-onComplete();
+        onComplete();
 
     } catch (error) {
 
         console.error(error);
-
         alert("Analysis failed");
 
     }
-
 };
 
   useEffect(() => {
@@ -226,19 +229,6 @@ onComplete();
         </div>
 
         {/* Manual Continue button — appears once done */}
-        <AnimatePresence>
-          {isDone && (
-            <motion.button
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              onClick={runAnalysis}
-              className="w-full py-3 rounded-[16px] bg-[#F4C95D] hover:bg-[#FFD978] text-[#0B0B12] font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(244,201,93,0.2)] active:scale-95"
-            >
-              <span>View Damage Report</span>
-              <ChevronRight className="w-4 h-4" />
-            </motion.button>
-          )}
-        </AnimatePresence>
 
       </div>
     </div>

@@ -1,28 +1,17 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
-from dotenv import load_dotenv
-import os
+"""
+DEPRECATED: This module previously used SQLAlchemy.
+All database operations now use Firebase Firestore via app.config.database.
+This stub is kept for backward compatibility in case any old code imports from here.
+"""
 
-load_dotenv()
+# Re-export Firestore helpers so any legacy imports still work
+from app.config.database import get_col, doc_to_dict, docs_to_list  # noqa: F401
 
-print("DATABASE_URL =", os.getenv("DATABASE_URL"))
-print("GEMINI_API_KEY =", os.getenv("GEMINI_API_KEY"))
-
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-engine = create_engine(DATABASE_URL)
-
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
-)
-
-Base = declarative_base()
 
 def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    """Deprecated: Returns Firestore client. Use get_col() from app.config.database instead."""
+    from app.core.firebase import get_db as _get_firestore_db
+    db = _get_firestore_db()
+    if db is None:
+        raise RuntimeError("Firestore client is None.")
+    return db

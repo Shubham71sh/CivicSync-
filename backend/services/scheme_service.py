@@ -12,22 +12,11 @@ def get_eligible_schemes(disaster, damage, state):
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    disaster = disaster.lower()
+    req_d = (disaster or "").lower().replace("_", "").replace(" ", "")
 
-    if disaster not in data:
-        return []
+    for k in data:
+        clean_k = k.lower().replace("_", "").replace(" ", "")
+        if clean_k in req_d or req_d in clean_k:
+            return data[k]
 
-    eligible = []
-
-    for scheme in data[disaster]:
-
-        if (
-            scheme["min_damage"] <= damage
-            and (
-                scheme["state"].lower() == state.lower()
-                or scheme["state"].lower() == "all"
-            )
-        ):
-            eligible.append(scheme)
-
-    return eligible
+    return []

@@ -1,4 +1,20 @@
+"""
+Profile Service — Firestore-based user profile storage.
+
+Migration notes (MongoDB → Firebase):
+- Removed: `self.db.profiles.find_one({"userId": str(user_id)})` →
+  replaced with `get_col("profiles").document(uid).get()`.
+- Removed: `self.db.profiles.update_one({...}, {"$set": {...}}, upsert=True)` →
+  replaced with `get_col("profiles").document(uid).set({...}, merge=True)`.
+- The `db` constructor argument is accepted but ignored for backward compatibility
+  with ChatService which instantiates `ProfileService(db)`.
+- Uses user UID as the Firestore document ID in the "profiles" collection for
+  O(1) lookups without an index query.
+"""
+
+import asyncio
 from typing import Any, Dict, Optional
+from app.config.database import get_col
 
 
 PROFILE_FIELDS = (
@@ -20,8 +36,9 @@ PROFILE_FIELDS = (
 
 class ProfileService:
 
-    def __init__(self, db):
-        self.db = db
+    def __init__(self, db=None):
+        # `db` is accepted for backward compatibility; Firestore is used directly.
+        pass
 
     @staticmethod
     def _defaults(user: Optional[Dict[str, Any]] = None) -> dict:
@@ -57,19 +74,24 @@ class ProfileService:
         user_id,
         user_defaults: Optional[Dict[str, Any]] = None,
     ) -> Optional[dict]:
+        """
+        Fetch profile from Firestore by user UID.
+        Falls back to defaults derived from the authenticated user dict if not found.
+        """
+        loop = asyncio.get_event_loop()
+        uid = str(user_id)
 
-        profile = await self.db.profiles.find_one(
-            {
-                "userId": str(user_id)
-            }
+        doc = await loop.run_in_executor(
+            None,
+            lambda: get_col("profiles").document(uid).get(),
         )
 
-        if not profile and user_defaults is None:
+        if not doc.exists and user_defaults is None:
             return None
 
         merged = self._defaults(user_defaults)
-        if profile:
-            merged.update(self._public_profile(profile))
+        if doc.exists:
+            merged.update(self._public_profile(doc.to_dict() or {}))
 
         return merged
 
@@ -80,6 +102,9 @@ class ProfileService:
         user_defaults: Optional[Dict[str, Any]] = None,
     ) -> dict:
         """Persist profile details where the chat service can read them."""
+        loop = asyncio.get_event_loop()
+        uid = str(user_id)
+
         existing = self._defaults(user_defaults)
         stored_profile = await self.get_profile(user_id, user_defaults)
         if stored_profile:
@@ -90,12 +115,11 @@ class ProfileService:
             for field, value in updates.items()
             if field in PROFILE_FIELDS and value is not None
         }
-        profile = {**existing, **sanitized_updates}
+        profile = {**existing, **sanitized_updates, "userId": uid}
 
-        await self.db.profiles.update_one(
-            {"userId": str(user_id)},
-            {"$set": {**profile, "userId": str(user_id)}},
-            upsert=True,
+        await loop.run_in_executor(
+            None,
+            lambda: get_col("profiles").document(uid).set(profile, merge=True),
         )
 
         return self._public_profile(profile)

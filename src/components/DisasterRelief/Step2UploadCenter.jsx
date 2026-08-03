@@ -95,9 +95,13 @@ const handleUploadToBackend = async () => {
   console.log("Report ID received:", reportId);
   try {
 
-    const files = uploadedFiles.map((f) => f.originalFile);
+   const formData = new FormData();
 
-    await uploadImages(reportId, files);
+uploadedFiles.forEach((file) => {
+  formData.append("files", file.originalFile);
+});
+
+await uploadImages(reportId, formData);
 
     alert("Images uploaded successfully!");
 
