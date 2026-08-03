@@ -53,7 +53,7 @@ class ChatService:
     ):
 
         # ----------------------------------
-        # Conversation ΓÇö create with placeholder, update title after
+        # Conversation - create with placeholder, update title after
         # ----------------------------------
         is_new_conversation = conversation_id is None
         if is_new_conversation:
@@ -134,20 +134,20 @@ class ChatService:
             )
 
         else:
-            # General Questions
-            prompt = f"""You are CivicSync AI.
+            # General Questions - answer directly
+            prompt = f"""You are CivicSync AI, a helpful civic assistant.
 
-The user asked:
+Answer the following question clearly and accurately.
 
-{question}
+Question: {question}
 
-Answer naturally and accurately.
-
-If it is a programming question, provide code.
-
-If it is a general knowledge question, answer normally.
-
-Respond in {language}.
+Instructions:
+- Answer directly and completely
+- If it is about a government scheme, law, or policy answer from your knowledge
+- If it is a general knowledge question, answer normally
+- If it is a programming question, provide working code
+- Always give a full, useful answer — never say you cannot answer
+- Respond in {language}
 """
 
         # ----------------------------------

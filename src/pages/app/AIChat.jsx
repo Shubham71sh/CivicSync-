@@ -33,13 +33,10 @@ const INITIAL_MESSAGE = {
 
 const LANGUAGES = [
   { code: "en", name: "English" },
-  { code: "hi", name: "αñ╣αñ┐αñ¿αÑìαñªαÑÇ" },
-  { code: "pa", name: "α¿¬α⌐░α¿£α¿╛α¿¼α⌐Ç" },
-  { code: "es", name: "Espa├▒ol" },
-  { code: "fr", name: "Fran├ºais" },
-  { code: "de", name: "Deutsch" },
-  { code: "zh", name: "Σ╕¡µûç" },
-  { code: "ar", name: "╪º┘ä╪╣╪▒╪¿┘è╪⌐" },
+  { code: "hi", name: "Hindi" },
+  { code: "pa", name: "Punjabi" },
+  { code: "bn", name: "Bengali" },
+  { code: "te", name: "Telugu" },
 ];
 
 export default function AIChat() {
@@ -355,7 +352,7 @@ export default function AIChat() {
     ]);
 
     try {
-      // Send message ΓÇö if no conversationId the backend will create one
+      // Send message - if no conversationId the backend will create one
       // with an AI-generated title automatically
       const result = await sendMessage({
         conversation_id: conversationId || null,
@@ -379,7 +376,7 @@ export default function AIChat() {
       setMessages((prev) => [...prev, botMessage]);
       handleSpeak(botId, result.response);
 
-      // Refresh sidebar ΓÇö new title will now appear
+      // Refresh sidebar - new title will now appear
       loadConversations();
     } catch (err) {
       console.error(err);
