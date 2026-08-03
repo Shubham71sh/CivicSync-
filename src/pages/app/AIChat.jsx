@@ -386,7 +386,7 @@ export default function AIChat() {
       };
 
       setMessages((prev) => [...prev, botMessage]);
-      handleSpeak(botId, result.response);
+      // Do NOT auto-speak — browser blocks speech without direct user interaction
 
       // Refresh sidebar - new title will now appear
       loadConversations();
@@ -398,7 +398,6 @@ export default function AIChat() {
         ...prev,
         { id: errorId, type: "bot", text: error },
       ]);
-      handleSpeak(errorId, error);
     } finally {
       setIsTyping(false);
     }
@@ -670,14 +669,15 @@ Continue immediately after Part 3
               <div className="mt-3 pt-3 border-t border-border/40 flex justify-end">
 
                 <button
-                  onClick={() =>
-                    handleSpeak(msg.id, msg.text)
-                  }
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSpeak(msg.id, msg.text);
+                  }}
                   className={clsx(
-                    "flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs transition",
+                    "flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs transition font-medium",
                     activeSpeakingId === msg.id
                       ? "bg-accent/20 text-accent border border-accent/30"
-                      : "hover:bg-[#202430] text-textSecondary"
+                      : "bg-[#202430] hover:bg-accent/10 text-textSecondary hover:text-accent border border-border"
                   )}
                 >
                   {activeSpeakingId === msg.id ? (
@@ -822,10 +822,5 @@ Continue immediately after Part 4
   </div>
 
 </div>
-// =======================
-// PART 6 / 6
-// Final Closing
-// =======================
-
   );
 }
