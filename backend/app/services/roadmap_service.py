@@ -28,18 +28,47 @@ DEFAULT_ITEMS = [
 async def get_roadmap(uid: str) -> dict:
     loop = asyncio.get_event_loop()
     doc = await loop.run_in_executor(None, lambda: get_col("roadmaps").document(uid).get())
+    
     if doc.exists:
-        data = doc.to_dict()
+        data = doc.to_dict() or {}
         data["id"] = doc.id
+        items = data.get("items", [])
+        
+        completed = sum(1 for i in items if i.get("status") == "completed")
+        actionRequired = sum(1 for i in items if i.get("status") in ["action_required", "actionRequired"])
+        upcoming = sum(1 for i in items if i.get("status") == "upcoming")
+        pending = sum(1 for i in items if i.get("status") == "pending")
+        
+        data["summary"] = {
+            "completed": completed,
+            "actionRequired": actionRequired,
+            "upcoming": upcoming,
+            "pending": pending,
+        }
+        if not items:
+            data["message"] = "No roadmap items found for your profile."
+            
         return {"roadmap": data}
 
-    # Seed default roadmap
+    # Seed default roadmap if not exists
     now = datetime.utcnow().isoformat()
+    completed = sum(1 for i in DEFAULT_ITEMS if i.get("status") == "completed")
+    actionRequired = sum(1 for i in DEFAULT_ITEMS if i.get("status") in ["action_required", "actionRequired"])
+    upcoming = sum(1 for i in DEFAULT_ITEMS if i.get("status") == "upcoming")
+    pending = sum(1 for i in DEFAULT_ITEMS if i.get("status") == "pending")
+
     default = {
         "citizenId": uid,
         "items": DEFAULT_ITEMS,
         "createdAt": now,
         "updatedAt": now,
+        "summary": {
+            "completed": completed,
+            "actionRequired": actionRequired,
+            "upcoming": upcoming,
+            "pending": pending,
+        },
+        "message": "Default roadmap initialized for citizen.",
     }
     await loop.run_in_executor(None, lambda: get_col("roadmaps").document(uid).set(default))
     default["id"] = uid

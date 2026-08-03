@@ -1,7 +1,6 @@
+import api from "../api/axiosInstance";
 import {
   firestoreGetGpsDashboard,
-  firestoreGetGpsRoadmap,
-  firestoreGenerateGpsRoadmap,
   firestoreGetGpsTasks,
   firestoreGetGpsDocuments,
   firestoreUploadGpsDocument,
@@ -13,7 +12,7 @@ import {
   firestoreGetNotifications
 } from "../firebase/firestore";
 
-// ─── GPS API Services (Firestore Integrated) ───────────────────────────────────
+// ─── GPS API Services (FastAPI + Firestore Integrated) ───────────────────────────────
 
 export const getGpsDashboard = async () => {
   const data = await firestoreGetGpsDashboard();
@@ -21,13 +20,13 @@ export const getGpsDashboard = async () => {
 };
 
 export const getGpsRoadmap = async () => {
-  const data = await firestoreGetGpsRoadmap();
-  return data.roadmap;
+  const res = await api.get("/gps/roadmap");
+  return res.data.roadmap;
 };
 
 export const generateGpsRoadmap = async () => {
-  const data = await firestoreGenerateGpsRoadmap();
-  return data.roadmap;
+  const res = await api.post("/gps/generate-roadmap");
+  return res.data.roadmap;
 };
 
 export const getGpsTasks = async () => {
