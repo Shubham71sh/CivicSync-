@@ -158,7 +158,22 @@ async def generate_roadmap(uid: str) -> dict:
         "icon": "CheckCircle2" if completed_apps > 0 else "Lock",
     })
 
-    roadmap_data = {"citizenId": uid, "items": items, "updatedAt": now}
+    completed = sum(1 for i in items if i.get("status") == "completed")
+    actionRequired = sum(1 for i in items if i.get("status") in ["action_required", "actionRequired"])
+    upcoming = sum(1 for i in items if i.get("status") == "upcoming")
+    pending = sum(1 for i in items if i.get("status") == "pending")
+
+    roadmap_data = {
+        "citizenId": uid,
+        "items": items,
+        "updatedAt": now,
+        "summary": {
+            "completed": completed,
+            "actionRequired": actionRequired,
+            "upcoming": upcoming,
+            "pending": pending,
+        },
+    }
     await loop.run_in_executor(None, lambda: get_col("roadmaps").document(uid).set(roadmap_data, merge=True))
     roadmap_data["id"] = uid
     return {"roadmap": roadmap_data}

@@ -104,3 +104,96 @@ export const deleteBill = async (billId) => {
     );
   }
 };
+
+/**
+ * Translate a bill's summary into a target language.
+ * @param {string} billId - The bill document ID
+ * @param {string} targetLanguage - Language code (e.g., 'hi', 'bn', 'ta', 'te', 'pa') or name (e.g., 'Hindi')
+ * @returns {{ language, translated_summary, cached }}
+ *
+ * Backend: POST /api/translation/translate
+ */
+export const translateBill = async (billId, targetLanguage) => {
+  try {
+    const { data } = await api.post("/translation/translate", {
+      bill_id: billId,
+      target_language: targetLanguage,
+    });
+    return data; // { language, translated_summary, cached }
+  } catch (error) {
+    console.error("[billService.translateBill] Error:", error);
+    throw new Error(
+      error.response?.data?.detail ||
+      "Translation failed. Please try again."
+    );
+  }
+};
+
+/**
+ * Get the total count of bills analyzed by the logged-in user.
+ * @returns {{ total: number }}
+ *
+ * Backend: GET /api/bills?limit=1
+ */
+export const getBillsCount = async () => {
+  try {
+    const { data } = await api.get("/bills", { params: { limit: 1, page: 1 } });
+    return { total: data.total || 0 };
+  } catch (error) {
+    console.error("[billService.getBillsCount] Error:", error);
+    return { total: 0 };
+  }
+};
+
+/**
+ * Get the most recently analyzed bill for the AI Summary card.
+ * @returns {{ bill: object | null }}
+ *
+ * Backend: GET /api/bills?limit=1&sort=newest
+ */
+export const getLatestBill = async () => {
+  try {
+    const { data } = await api.get("/bills", { params: { limit: 1, page: 1 } });
+    const bills = data.bills || data.data || [];
+    return { bill: bills.length > 0 ? bills[0] : null };
+  } catch (error) {
+    console.error("[billService.getLatestBill] Error:", error);
+    return { bill: null };
+  }
+};
+
+/**
+ * Search bills by keyword for the dashboard search bar.
+ * @param {string} keyword
+ * @returns {{ bills: object[] }}
+ *
+ * Backend: GET /api/bills?search=keyword
+ */
+export const searchBills = async (keyword) => {
+  try {
+    const { data } = await api.get("/bills", {
+      params: { search: keyword, limit: 10, page: 1 },
+    });
+    return { bills: data.bills || data.data || [] };
+  } catch (error) {
+    console.error("[billService.searchBills] Error:", error);
+    return { bills: [] };
+  }
+};
+
+/**
+ * Get list of supported translation languages.
+ * @returns {string[]} - Array of language names
+ *
+ * Backend: GET /api/translation/languages
+ */
+export const getSupportedLanguages = async () => {
+  try {
+    const { data } = await api.get("/translation/languages");
+    return data; // ['English', 'Hindi', 'Bengali', 'Tamil', 'Telugu', 'Punjabi']
+  } catch (error) {
+    console.error("[billService.getSupportedLanguages] Error:", error);
+    return ["English", "Hindi", "Bengali", "Tamil", "Telugu", "Punjabi"];
+  }
+};
+

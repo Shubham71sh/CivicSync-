@@ -277,45 +277,56 @@ export default function CivicGPS() {
             <div className="absolute left-[37px] top-24 bottom-12 w-px bg-border" />
 
             <div className="space-y-6 relative z-10">
-              {roadmap?.items?.map((item, idx) => {
-                const Icon = ICON_MAP[item.icon] || FileText;
-                return (
-                  <motion.div
-                    key={idx}
-                    initial={{ opacity: 0, x: -15 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.08 }}
-                    className="flex gap-4 items-start"
-                  >
-                    {/* Circle icon marker */}
-                    <div className={clsx(
-                      "w-8 h-8 rounded-full flex items-center justify-center border-2 border-[#12141d] flex-shrink-0 z-10 shadow-lg",
-                      item.status === "completed" ? "bg-success text-[#0a0a0f]" :
-                      item.status === "action_required" ? "bg-red-500 text-white animate-pulse" :
-                      item.status === "upcoming" ? "bg-blue-500 text-white" :
-                      "bg-[#2a2e3d] text-textSecondary"
-                    )}>
-                      <Icon className="w-4 h-4" />
-                    </div>
-
-                    {/* Step Card */}
-                    <div className="flex-1 p-4 rounded-2xl bg-[#171a21] border border-border">
-                      <div className="flex justify-between items-start gap-2 mb-1.5">
-                        <h4 className="text-white font-bold text-sm">{item.title}</h4>
-                        <span className={clsx("text-[9px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider", STATUS_THEMES[item.status] || STATUS_THEMES.pending)}>
-                          {item.badge}
-                        </span>
+              {roadmap?.items && roadmap.items.length > 0 ? (
+                roadmap.items.map((item, idx) => {
+                  const Icon = ICON_MAP[item.icon] || FileText;
+                  return (
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, x: -15 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.08 }}
+                      className="flex gap-4 items-start"
+                    >
+                      {/* Circle icon marker */}
+                      <div className={clsx(
+                        "w-8 h-8 rounded-full flex items-center justify-center border-2 border-[#12141d] flex-shrink-0 z-10 shadow-lg",
+                        item.status === "completed" ? "bg-success text-[#0a0a0f]" :
+                        item.status === "action_required" ? "bg-red-500 text-white animate-pulse" :
+                        item.status === "upcoming" ? "bg-blue-500 text-white" :
+                        "bg-[#2a2e3d] text-textSecondary"
+                      )}>
+                        <Icon className="w-4 h-4" />
                       </div>
-                      <p className="text-xs text-textSecondary leading-relaxed">{item.desc}</p>
-                      {item.date && (
-                        <p className="text-[10px] text-accent font-semibold mt-2 flex items-center gap-1">
-                          <Calendar className="w-3 h-3" /> {item.date}
-                        </p>
-                      )}
-                    </div>
-                  </motion.div>
-                );
-              })}
+
+                      {/* Step Card */}
+                      <div className="flex-1 p-4 rounded-2xl bg-[#171a21] border border-border">
+                        <div className="flex justify-between items-start gap-2 mb-1.5">
+                          <h4 className="text-white font-bold text-sm">{item.title}</h4>
+                          <span className={clsx("text-[9px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider", STATUS_THEMES[item.status] || STATUS_THEMES.pending)}>
+                            {item.badge}
+                          </span>
+                        </div>
+                        <p className="text-xs text-textSecondary leading-relaxed">{item.desc}</p>
+                        {item.date && (
+                          <p className="text-[10px] text-accent font-semibold mt-2 flex items-center gap-1">
+                            <Calendar className="w-3 h-3" /> {item.date}
+                          </p>
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                })
+              ) : (
+                <div className="p-6 text-center text-textSecondary bg-[#171a21] rounded-2xl border border-border">
+                  <p className="font-semibold text-sm">
+                    {roadmap?.message || "No roadmap items found for your profile."}
+                  </p>
+                  <p className="text-xs text-textSecondary/70 mt-1">
+                    Click "Sync Roadmap" above to generate your personalized civic trajectory.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

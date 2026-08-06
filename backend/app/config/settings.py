@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     
     # Firebase
     FIREBASE_PROJECT_ID: str = "civic-sync-cosmic"
-    FIREBASE_STORAGE_BUCKET: str = "civic-sync-cosmic.firebasestorage.app"
+    FIREBASE_STORAGE_BUCKET: str = "civic-sync-cosmic.appspot.com"
     
     # Gemini AI
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
