@@ -56,18 +56,22 @@ class RAGService:
     def _document_text(document: Dict[str, Any]) -> str:
         values: Iterable[Any] = (
             document.get("title", ""),
+            document.get("name", ""),           # schemes use "name"
             document.get("billNumber", ""),
             document.get("summary", ""),
             document.get("content", ""),
-            document.get("description", ""),
+            document.get("description", ""),    # schemes use "description"
             document.get("category", ""),
             document.get("objectives", ""),
             document.get("provisions", ""),
+            document.get("eligibility", ""),    # schemes use "eligibility"
+            document.get("benefits", ""),
+            document.get("state", ""),          # schemes have "state"
             " ".join(document.get("tags", []) or []),
             " ".join(document.get("keyPoints", []) or []),
             " ".join(document.get("eligibilityCriteria", []) or []),
-            document.get("benefits", ""),
             document.get("extractedText", ""),
+            document.get("userImpact", ""),
         )
         return "\n".join(str(value) for value in values if value)
 
@@ -123,19 +127,25 @@ class RAGService:
         eligibility_question = self._is_eligibility_question(question_keywords)
         focus_terms = list(dict.fromkeys(question_keywords + profile_keywords))
 
-        # ── Fetch from Firestore (synchronous SDK wrapped in executor) ──────────
+        # ── Fetch from all 3 collections in parallel ─────────────────────────────
         loop = asyncio.get_event_loop()
-        raw_docs = await loop.run_in_executor(
-            None,
-            lambda: list(get_col("government_documents").limit(100).stream()),
-        )
 
-        # ── Rank in-memory (identical logic to the former MongoDB version) ──────
+        def _fetch_all():
+            gov_docs  = list(get_col("government_documents").limit(100).stream())
+            bills     = list(get_col("bills").limit(100).stream())
+            schemes   = list(get_col("schemes").limit(100).stream())
+            return gov_docs + bills + schemes
+
+        raw_docs = await loop.run_in_executor(None, _fetch_all)
+
+        # ── Rank in-memory ────────────────────────────────────────────────────────
         ranked_documents = []
         for doc_snapshot in raw_docs:
             document = doc_snapshot.to_dict() or {}
             document["id"] = doc_snapshot.id
 
+            # Bills and schemes are public — always include them
+            # government_documents respect owner/visibility rules
             is_owner = (
                 user_id is not None
                 and str(document.get("userId")) == str(user_id)
@@ -144,7 +154,13 @@ class RAGService:
                 document.get("isGovernmentDocument") is True
                 or document.get("visibility") == "government"
             )
-            if not (is_owner or is_shared_government_record):
+            # schemes and bills are always public
+            is_public = (
+                document.get("status") in ("active", "passed", "pending", "under_review")
+                or document.get("name") is not None   # schemes have "name" field
+                or document.get("billNumber") is not None  # bills have "billNumber"
+            )
+            if not (is_owner or is_shared_government_record or is_public):
                 continue
 
             document_text = self._document_text(document)
@@ -180,15 +196,18 @@ class RAGService:
     async def get_sources(self, documents: List[dict]):
         sources = []
         for doc in documents:
-            title = doc.get("title", "")
+            title = doc.get("title", "") or doc.get("name", "")
             number = doc.get("billNumber", "")
             official_source = doc.get("officialSource", "")
+            state = doc.get("state", "")
 
             if official_source:
                 sources.append(f"{title} — {official_source}")
             elif number:
                 sources.append(f"{title} ({number})")
+            elif state and state != "All States":
+                sources.append(f"{title} ({state})")
             else:
                 sources.append(title)
 
-        return sources
+        return [s for s in sources if s]
