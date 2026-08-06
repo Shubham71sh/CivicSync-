@@ -102,6 +102,8 @@ async def chat(
             "en": "English",
             "hi": "Hindi",
             "pa": "Punjabi",
+            "bn": "Bengali",
+            "te": "Telugu",
             "es": "Spanish",
             "fr": "French",
             "de": "German",

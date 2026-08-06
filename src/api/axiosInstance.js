@@ -1,8 +1,7 @@
 import axios from "axios";
+import { auth } from "../firebase/firebase";
 
 // ─── Base URL ────────────────────────────────────────────────────────────────
-// Module 1 (Citizen Portal) + Module 3 (Transparency Engine) — FastAPI on port 8000.
-// VITE_API_URL in .env should point to: http://localhost:8000/api
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
 // ─── Axios Instance ───────────────────────────────────────────────────────────
@@ -14,14 +13,32 @@ const api = axios.create({
 });
 
 // ─── Request Interceptor ──────────────────────────────────────────────────────
-// Automatically attaches the JWT Bearer token to every request.
-// Token is stored in localStorage as "civicsync_token".
-// Keeps profile, bill, and chat requests tied to the same signed-in citizen.
+// Always gets a fresh Firebase token before every request.
+// Firebase SDK handles caching and auto-refresh internally.
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("civicsync_token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+  async (config) => {
+    try {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        // forceRefresh=false — Firebase returns cached token if still valid,
+        // or auto-refreshes it if it has expired
+        const freshToken = await currentUser.getIdToken(false);
+        config.headers.Authorization = `Bearer ${freshToken}`;
+        // Keep localStorage in sync
+        localStorage.setItem("civicsync_token", freshToken);
+      } else {
+        // Fall back to stored token if no Firebase user (e.g. demo mode)
+        const storedToken = localStorage.getItem("civicsync_token");
+        if (storedToken) {
+          config.headers.Authorization = `Bearer ${storedToken}`;
+        }
+      }
+    } catch (err) {
+      // If token refresh fails, try stored token
+      const storedToken = localStorage.getItem("civicsync_token");
+      if (storedToken) {
+        config.headers.Authorization = `Bearer ${storedToken}`;
+      }
     }
     return config;
   },
@@ -29,14 +46,22 @@ api.interceptors.request.use(
 );
 
 // ─── Response Interceptor ─────────────────────────────────────────────────────
-// Handles 401 globally — clears stale token on auth failure.
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid — clear storage so AuthContext re-hydrates cleanly
-      const path = window.location.pathname;
-      if (path !== "/login" && path !== "/signup" && path !== "/") {
+      // Token truly invalid — try one force-refresh then retry
+      try {
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          const freshToken = await currentUser.getIdToken(true); // force refresh
+          localStorage.setItem("civicsync_token", freshToken);
+          // Retry the original request once with the new token
+          error.config.headers.Authorization = `Bearer ${freshToken}`;
+          return api(error.config);
+        }
+      } catch (refreshErr) {
+        // Refresh failed — clear storage and redirect to login
         localStorage.removeItem("civicsync_token");
         localStorage.removeItem("civicsync_user");
       }

@@ -2,35 +2,39 @@ from contextlib import asynccontextmanager
 from typing import Any, Dict
 import logging
 
-# pyrefly: ignore [missing-import]
 from fastapi import Depends, FastAPI
-
-# pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
-
-# pyrefly: ignore [missing-import]
 from pydantic import BaseModel
+
+# ── Firebase / Firestore ──────────────────────────────────────────────────────
+from app.core.firebase import get_db
+from app.services.seed_service import seed_schemes
 
 # ── Module 3 routers (Transparency Engine) ───────────────────────────────────
 from app.api.routes import bills, compare, fake_news
-
-# ── Module 1 routers (Citizen Portal — Firebase) ─────────────────────────────
-from app.routers import (
-    auth, citizen, schemes, benefits, notifications,
-    roadmap, chat, gps, dashboard, analytics,
-    disaster_schemes
-)
+from app.api.routes import chat as chat_route
 
 # ── Module 2 routers (Disaster Relief Reports) ───────────────────────────────
 from app.routers import reports
 
-# ── Firebase + seed ───────────────────────────────────────────────────────────
-from app.core.firebase import get_db
-from app.services.seed_service import seed_schemes
+# ── Module 1 routers ─────────────────────────────────────────────────────────
+from app.routers import (
+    auth, citizen, schemes, benefits, notifications,
+    roadmap, chat, gps, dashboard, analytics,
+    disaster_schemes, loan_analyzer, insurance_analyzer,
+    scheme_notifications,
+)
 
-# ── Auth middleware (for profile endpoints) ───────────────────────────────────
+# ── Auth middleware ───────────────────────────────────────────────────────────
 from app.middleware.auth import get_current_user
 from app.services.profile_service import ProfileService
+
+# Translation route (optional)
+try:
+    from app.api.routes import translation
+    _has_translation = True
+except Exception:
+    _has_translation = False
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("uvicorn.error")
@@ -40,55 +44,42 @@ logger = logging.getLogger("uvicorn.error")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Initializing CivicSync FastAPI backend...")
+    logger.info("Starting CivicSync backend...")
     try:
-        # Initialize Firebase Admin + Firestore
         db = get_db()
-        logger.info("Firebase Admin SDK initialized.")
+        if db is None:
+            raise RuntimeError("Firestore returned None.")
+        logger.info("Firebase + Firestore connected.")
 
-        # Seed schemes into Firestore
         seeded = await seed_schemes()
         if seeded > 0:
-            logger.info(f"Seeded {seeded} government schemes into Firestore.")
+            logger.info(f"Seeded {seeded} government schemes.")
         else:
-            logger.info("Schemes collection already seeded — skipping.")
+            logger.info("Schemes already seeded.")
     except Exception as e:
-        logger.error(f"Startup error: {e}")
-
+        logger.critical(f"Startup error: {e}", exc_info=True)
+        raise
     yield
-
-    logger.info("CivicSync FastAPI shutting down.")
+    logger.info("CivicSync backend shutting down.")
 
 
 # ── App ───────────────────────────────────────────────────────────────────────
 
 app = FastAPI(
     title="CivicSync AI Backend",
-    version="3.0.0",
-    description=(
-        "Module 1 (Citizen Portal — Firebase) + "
-        "Module 2 (Disaster Relief) + "
-        "Module 3 (Transparency Engine — Gemini AI)"
-    ),
+    version="4.0.0",
     lifespan=lifespan,
 )
-
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:3000",
-        "*",
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 # ── Module 1 Routes ───────────────────────────────────────────────────────────
 
@@ -102,31 +93,34 @@ app.include_router(chat.router, prefix="/api")
 app.include_router(gps.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
+app.include_router(loan_analyzer.router, prefix="/api")
+app.include_router(insurance_analyzer.router, prefix="/api")
+app.include_router(scheme_notifications.router, prefix="/api")
 
+# ── Module 3 Routes (Transparency Engine + AI Chat) ──────────────────────────
+
+app.include_router(bills.router, prefix="/api")
+app.include_router(compare.router, prefix="/api")
+app.include_router(fake_news.router, prefix="/api")
+app.include_router(chat_route.router, prefix="/api")
+
+# Legacy bare mounts
+app.include_router(bills.router)
+app.include_router(compare.router)
+app.include_router(fake_news.router)
+app.include_router(chat_route.router)
+
+if _has_translation:
+    app.include_router(translation.router, prefix="/api")
+    app.include_router(translation.router)
 
 # ── Module 2 Routes (Disaster Relief) ────────────────────────────────────────
-# Registered at /reports (frontend api.js calls http://127.0.0.1:8000/reports/...)
 
 app.include_router(reports.router)
 app.include_router(disaster_schemes.router)
 
 
-# ── Module 3 Routes (Transparency Engine) ────────────────────────────────────
-
-app.include_router(bills.router, prefix="/api")
-app.include_router(compare.router, prefix="/api")
-app.include_router(fake_news.router, prefix="/api")
-
-# Legacy bare mounts (frontend hits /bills, /chat, /fake-news directly)
-app.include_router(bills.router)
-app.include_router(compare.router)
-app.include_router(fake_news.router)
-
-# Bare /chat endpoint — src/services/api.js calls http://127.0.0.1:8000/chat
-app.include_router(chat.router)
-
-
-# ── Profile Model (HEAD branch — preserved) ───────────────────────────────────
+# ── Profile Model ─────────────────────────────────────────────────────────────
 
 class ProfileUpdate(BaseModel):
     name: str = ""
@@ -144,7 +138,7 @@ class ProfileUpdate(BaseModel):
     studentStatus: str = ""
 
 
-# ── Profile Endpoints (HEAD branch — preserved) ───────────────────────────────
+# ── Profile Endpoints ─────────────────────────────────────────────────────────
 
 @app.get("/profile")
 @app.get("/api/profile")
@@ -161,16 +155,12 @@ async def update_profile(
     profile: ProfileUpdate,
     current_user: Dict[str, Any] = Depends(get_current_user),
 ):
-    saved_profile = await ProfileService(get_db()).update_profile(
+    saved = await ProfileService(get_db()).update_profile(
         current_user["_id"],
         profile.model_dump(exclude_unset=True),
         user_defaults=current_user,
     )
-    logger.info("Updated civic profile for user %s", current_user["_id"])
-    return {
-        "message": "Profile updated successfully",
-        "profile": saved_profile,
-    }
+    return {"message": "Profile updated successfully", "profile": saved}
 
 
 # ── Root & Health ─────────────────────────────────────────────────────────────
@@ -179,23 +169,11 @@ async def update_profile(
 def root():
     return {
         "message": "CivicSync Backend Running Successfully",
-        "version": "3.0.0",
+        "version": "4.0.0",
         "database": "Firebase Firestore",
-        "auth": "Firebase Authentication",
-        "modules": (
-            "Module 1 (Citizen Portal) + "
-            "Module 2 (Disaster Relief) + "
-            "Module 3 (Transparency Engine)"
-        ),
-        "docs": "/docs",
     }
 
 
 @app.get("/health")
 def health():
-    return {
-        "status": "healthy",
-        "database": "Firestore",
-        "auth": "Firebase",
-        "server": "running",
-    }
+    return {"status": "healthy", "server": "running", "database": "Firestore"}

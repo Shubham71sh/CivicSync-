@@ -38,6 +38,10 @@ import GenericPage from "./pages/app/GenericPage";
 import SchemeFinder from "./pages/app/SchemeFinder";
 import EligibilityChecker from "./pages/app/EligibilityChecker";
 import BenefitsTracker from "./pages/app/BenefitsTracker";
+// ─── Module 4 Pages ──────────────────────────────────────────────────────────
+import LoanAnalyzer from "./pages/app/LoanAnalyzer";
+import InsuranceAnalyzer from "./pages/app/InsuranceAnalyzer";
+import SchemeNotifications from "./pages/app/SchemeNotifications";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // App Route Tree
@@ -108,6 +112,8 @@ function App() {
 
                 {/* AI */}
                 <Route path="/dashboard/chat" element={<AIChat />} />
+                <Route path="/dashboard/loan-analyzer" element={<LoanAnalyzer />} />
+                <Route path="/dashboard/insurance-analyzer" element={<InsuranceAnalyzer />} />
 
                 {/* Intelligence */}
                 <Route path="/dashboard/gps" element={<CivicGPS />} />
@@ -123,11 +129,11 @@ function App() {
                 <Route path="/dashboard/notifications" element={<Notifications />} />
                 <Route path="/dashboard/settings" element={<Settings />} />
 
-                {/* Stubs (Coming Soon) */}
-                {/* ── Module 1: Scheme Finder, Eligibility Checker, Benefits Tracker ── */}
-                <Route path="/dashboard/scheme"      element={<SchemeFinder />} />
-                <Route path="/dashboard/eligibility" element={<EligibilityChecker />} />
-                <Route path="/dashboard/benefits"    element={<BenefitsTracker />} />
+                {/* ── Module 1 & Module 4 Gov Services ── */}
+                <Route path="/dashboard/scheme"              element={<SchemeFinder />} />
+                <Route path="/dashboard/eligibility"         element={<EligibilityChecker />} />
+                <Route path="/dashboard/benefits"            element={<BenefitsTracker />} />
+                <Route path="/dashboard/scheme-notifications" element={<SchemeNotifications />} />
 
                 {/* Stubs (Coming Soon) */}
                 <Route path="/dashboard/analyses" element={<GenericPage title="My Analyses" description="Review past bills you've processed through CivicSync AI." icon={History} />} />
