@@ -110,7 +110,7 @@ class RAGService:
     def _make_excerpt(self, text: str, focus_terms: List[str]) -> str:
         """Keep the relevant evidence while avoiding a full-PDF prompt."""
         normalized = re.sub(r"\s+", " ", text).strip()
-        if len(normalized) <= 2500:
+        if len(normalized) <= 1500:
             return normalized
 
         sentences = re.split(r"(?<=[.!?])\s+", normalized)
@@ -122,16 +122,16 @@ class RAGService:
             ),
             reverse=True,
         )
-        selected_indexes = sorted(index for index, _ in ranked[:12])
+        selected_indexes = sorted(index for index, _ in ranked[:6])
         excerpt = " ".join(sentences[index] for index in selected_indexes).strip()
-        return (excerpt or normalized[:2500])[:4000]
+        return (excerpt or normalized[:1500])[:2000]
 
     async def search_documents(
         self,
         question: str,
         profile: Optional[Dict[str, Any]] = None,
         user_id: Optional[str] = None,
-        limit: int = 5,
+        limit: int = 3,
     ) -> List[dict]:
         """
         Rank government documents from Firestore for relevance to the question

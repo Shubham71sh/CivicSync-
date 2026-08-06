@@ -133,15 +133,19 @@ class ChatService:
         print("STEP 7: calling AI")
         try:
             if is_new_conversation:
-                answer_task = asyncio.to_thread(call_gemini, prompt)
-                title_task  = asyncio.to_thread(_generate_title, question)
-
-                results = await asyncio.wait_for(
-                    asyncio.gather(answer_task, title_task),
+                answer = await asyncio.wait_for(
+                    asyncio.to_thread(call_gemini, prompt),
                     timeout=60,
                 )
-                answer = (results[0] or "").strip()
-                smart_title = results[1]
+                answer = (answer or "").strip()
+
+                try:
+                    smart_title = await asyncio.wait_for(
+                        asyncio.to_thread(_generate_title, question),
+                        timeout=10,
+                    )
+                except Exception:
+                    smart_title = question[:40]
 
                 await self.memory.rename_conversation(conversation_id, smart_title)
                 print(f"STEP 8: title set to '{smart_title}'")
