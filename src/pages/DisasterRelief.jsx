@@ -15,7 +15,7 @@ import Step6Eligibility from "../components/DisasterRelief/Step6Eligibility";
 import Step7Documents from "../components/DisasterRelief/Step7Documents";
 import Step8ClaimTimeline from "../components/DisasterRelief/Step8ClaimTimeline";
 import Step9NearbyHelp from "../components/DisasterRelief/Step9NearbyHelp";
-import FloatingAIChat from "../components/DisasterRelief/FloatingAIChat";
+// import FloatingAIChat from "../components/DisasterRelief/FloatingAIChat";
 import { downloadCaseSummaryPDF } from "../utils/generatePdf";
 
 // import {
@@ -966,7 +966,7 @@ const selectedScheme =
       </main>
 
       {/* Floating AI Chat */}
-      <FloatingAIChat />
+      {/* <FloatingAIChat /> */}
     </div>
   );
 }
