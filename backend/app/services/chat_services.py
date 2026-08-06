@@ -28,16 +28,39 @@ Rules:
 Title:"""
     try:
         title = call_gemini(prompt).strip().strip('"').strip("'")
-        # Trim to 60 chars just in case
         return title[:60] if title else question[:40]
     except Exception:
         return question[:40]
 
 
+def _build_prompt(question: str, language: str, profile=None, history=None, documents=None) -> str:
+    """Build the best prompt based on what context is available."""
+
+    # If we have documents from RAG — use structured prompt
+    if documents:
+        return PromptBuilder.build(profile, history, documents, question, language)
+
+    # No documents — answer from AI knowledge directly
+    return f"""You are CivicSync AI, a knowledgeable assistant for Indian citizens.
+
+Answer the following question fully and accurately.
+
+Question: {question}
+
+Instructions:
+- Answer directly and completely from your knowledge
+- If it is about an Indian government scheme, policy, law or act — provide details like eligibility, benefits, how to apply
+- If it is a general knowledge question — answer normally
+- If it is a programming question — provide working code
+- Never say you cannot find documents or that no schemes match
+- Always give a helpful, complete answer
+- You MUST respond entirely in {language}. If {language} is Hindi, write the ENTIRE response in Hindi (Devanagari script). If {language} is Punjabi, respond in Punjabi. If {language} is Bengali, respond in Bengali. If {language} is Telugu, respond in Telugu.
+"""
+
+
 class ChatService:
 
     def __init__(self, db):
-
         self.db = db
         self.memory = MemoryService(db)
         self.profile = ProfileService(db)
@@ -51,36 +74,26 @@ class ChatService:
         conversation_id=None,
         current_user=None,
     ):
-
         # ----------------------------------
-        # Conversation ΓÇö create with placeholder, update title after
+        # Conversation
         # ----------------------------------
         is_new_conversation = conversation_id is None
         if is_new_conversation:
-            conversation = await self.memory.create_conversation(
-                user_id,
-                "New Chat"          # temporary placeholder
-            )
+            conversation = await self.memory.create_conversation(user_id, "New Chat")
             conversation_id = conversation["_id"]
 
         # ----------------------------------
-        # Profile
+        # Profile + History
         # ----------------------------------
         print("STEP 1: chat() started")
-        profile = await self.profile.get_profile(
-            user_id,
-            user_defaults=current_user,
-        )
+        profile = await self.profile.get_profile(user_id, user_defaults=current_user)
 
-        # ----------------------------------
-        # History
-        # ----------------------------------
         print("STEP 2: profile loaded")
         history = await self.memory.get_recent_context(conversation_id)
         print("STEP 3: history loaded")
 
         # ----------------------------------
-        # Question Type
+        # Question Classification
         # ----------------------------------
         router = QuestionRouter()
         question_type = router.classify(question)
@@ -90,7 +103,7 @@ class ChatService:
         sources = []
 
         # ----------------------------------
-        # Government Questions
+        # Try RAG for government questions
         # ----------------------------------
         if question_type in [
             "government_scheme",
@@ -103,60 +116,23 @@ class ChatService:
         ]:
             print("STEP 5: searching RAG")
             documents = await self.rag.search_documents(
-                question,
-                profile=profile,
-                user_id=user_id,
+                question, profile=profile, user_id=user_id
             )
             print("STEP 6: RAG returned", len(documents), "documents")
-
-            sources = await self.rag.get_sources(documents)
-
-            if not documents:
-                answer = (
-                    "No government document matching your request was found."
-                )
-                await self.memory.save_message(conversation_id, user_id, "user", question)
-                await self.memory.save_message(conversation_id, user_id, "bot", answer)
-
-                # Still generate a smart title for new conversations
-                if is_new_conversation:
-                    title = await asyncio.to_thread(_generate_title, question)
-                    await self.memory.rename_conversation(conversation_id, title)
-
-                return {
-                    "conversation_id": conversation_id,
-                    "response": answer,
-                    "sources": [],
-                }
-
-            prompt = PromptBuilder.build(
-                profile, history, documents, question, language
-            )
-
-        else:
-            # General Questions
-            prompt = f"""You are CivicSync AI.
-
-The user asked:
-
-{question}
-
-Answer naturally and accurately.
-
-If it is a programming question, provide code.
-
-If it is a general knowledge question, answer normally.
-
-Respond in {language}.
-"""
+            if documents:
+                sources = await self.rag.get_sources(documents)
 
         # ----------------------------------
-        # AI response + smart title (run in parallel for new conversations)
+        # Build prompt (with or without docs)
+        # ----------------------------------
+        prompt = _build_prompt(question, language, profile, history, documents)
+
+        # ----------------------------------
+        # Call AI + generate title in parallel
         # ----------------------------------
         print("STEP 7: calling AI")
         try:
             if is_new_conversation:
-                # Generate answer and title at the same time
                 answer_task = asyncio.to_thread(call_gemini, prompt)
                 title_task  = asyncio.to_thread(_generate_title, question)
 
@@ -167,9 +143,8 @@ Respond in {language}.
                 answer = (results[0] or "").strip()
                 smart_title = results[1]
 
-                # Save smart title to DB
                 await self.memory.rename_conversation(conversation_id, smart_title)
-                print(f"STEP 8: conversation title set to '{smart_title}'")
+                print(f"STEP 8: title set to '{smart_title}'")
             else:
                 answer = await asyncio.wait_for(
                     asyncio.to_thread(call_gemini, prompt),
