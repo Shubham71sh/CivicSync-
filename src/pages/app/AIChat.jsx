@@ -33,13 +33,10 @@ const INITIAL_MESSAGE = {
 
 const LANGUAGES = [
   { code: "en", name: "English" },
-  { code: "hi", name: "αñ╣αñ┐αñ¿αÑìαñªαÑÇ" },
-  { code: "pa", name: "α¿¬α⌐░α¿£α¿╛α¿¼α⌐Ç" },
-  { code: "es", name: "Espa├▒ol" },
-  { code: "fr", name: "Fran├ºais" },
-  { code: "de", name: "Deutsch" },
-  { code: "zh", name: "Σ╕¡µûç" },
-  { code: "ar", name: "╪º┘ä╪╣╪▒╪¿┘è╪⌐" },
+  { code: "hi", name: "Hindi" },
+  { code: "pa", name: "Punjabi" },
+  { code: "bn", name: "Bengali" },
+  { code: "te", name: "Telugu" },
 ];
 
 export default function AIChat() {
@@ -213,8 +210,10 @@ export default function AIChat() {
           "voiceschanged",
           handleVoicesChanged
         );
-
         window.speechSynthesis.cancel();
+        if (speakIntervalRef.current) {
+          clearInterval(speakIntervalRef.current);
+        }
       };
     }
   }, []);
@@ -234,7 +233,15 @@ export default function AIChat() {
     try {
       const recognition = new SpeechRecognition();
 
-      recognition.lang = selectedLang;
+      const langLocaleMap = {
+        "en": "en-US",
+        "hi": "hi-IN",
+        "pa": "pa-IN",
+        "bn": "bn-IN",
+        "te": "te-IN",
+      };
+
+      recognition.lang = langLocaleMap[selectedLang] || "en-US";
 
       recognition.continuous = false;
 
@@ -286,53 +293,78 @@ export default function AIChat() {
     }
   };
 
+  const speakIntervalRef = useRef(null);
+
   const handleSpeak = (id, text) => {
     if (!("speechSynthesis" in window)) return;
 
+    // Stop if already speaking this message
     if (activeSpeakingId === id) {
       window.speechSynthesis.cancel();
+      if (speakIntervalRef.current) {
+        clearInterval(speakIntervalRef.current);
+        speakIntervalRef.current = null;
+      }
       setActiveSpeakingId(null);
       return;
     }
 
+    // Cancel any ongoing speech
     window.speechSynthesis.cancel();
+    if (speakIntervalRef.current) {
+      clearInterval(speakIntervalRef.current);
+      speakIntervalRef.current = null;
+    }
+
+    const langLocaleMap = {
+      "en": "en-US",
+      "hi": "hi-IN",
+      "pa": "pa-IN",
+      "bn": "bn-IN",
+      "te": "te-IN",
+    };
+
+    const locale = langLocaleMap[selectedLang] || "en-US";
 
     setTimeout(() => {
-      const utterance =
-        new SpeechSynthesisUtterance(text);
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = locale;
 
-      utterance.lang = selectedLang;
+      const voices = window.speechSynthesis.getVoices();
+      const baseLang = locale.split("-")[0].toLowerCase();
+      const voice =
+        voices.find((v) => v.lang.toLowerCase() === locale.toLowerCase()) ||
+        voices.find((v) => v.lang.toLowerCase().startsWith(baseLang));
 
-      const voices =
-        window.speechSynthesis.getVoices();
-
-      const voice = voices.find(
-        (v) =>
-          v.lang.toLowerCase() ===
-          selectedLang.toLowerCase()
-      );
-
-      if (voice) {
-        utterance.voice = voice;
-      }
-
+      if (voice) utterance.voice = voice;
       utterance.rate = 1;
-
       utterance.pitch = 1;
 
+      // Chrome bug fix: resume every 10s to prevent auto-pause
+      speakIntervalRef.current = setInterval(() => {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+        if (!window.speechSynthesis.speaking) {
+          clearInterval(speakIntervalRef.current);
+          speakIntervalRef.current = null;
+        }
+      }, 10000);
+
       utterance.onend = () => {
+        clearInterval(speakIntervalRef.current);
+        speakIntervalRef.current = null;
         setActiveSpeakingId(null);
       };
 
       utterance.onerror = () => {
+        clearInterval(speakIntervalRef.current);
+        speakIntervalRef.current = null;
         setActiveSpeakingId(null);
       };
 
       setActiveSpeakingId(id);
-
-      window.speechSynthesis.speak(
-        utterance
-      );
+      window.speechSynthesis.speak(utterance);
     }, 100);
   };
 
@@ -355,7 +387,7 @@ export default function AIChat() {
     ]);
 
     try {
-      // Send message ΓÇö if no conversationId the backend will create one
+      // Send message - if no conversationId the backend will create one
       // with an AI-generated title automatically
       const result = await sendMessage({
         conversation_id: conversationId || null,
@@ -377,9 +409,9 @@ export default function AIChat() {
       };
 
       setMessages((prev) => [...prev, botMessage]);
-      handleSpeak(botId, result.response);
+      // Do NOT auto-speak — browser blocks speech without direct user interaction
 
-      // Refresh sidebar ΓÇö new title will now appear
+      // Refresh sidebar - new title will now appear
       loadConversations();
     } catch (err) {
       console.error(err);
@@ -389,7 +421,6 @@ export default function AIChat() {
         ...prev,
         { id: errorId, type: "bot", text: error },
       ]);
-      handleSpeak(errorId, error);
     } finally {
       setIsTyping(false);
     }
@@ -661,14 +692,15 @@ Continue immediately after Part 3
               <div className="mt-3 pt-3 border-t border-border/40 flex justify-end">
 
                 <button
-                  onClick={() =>
-                    handleSpeak(msg.id, msg.text)
-                  }
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSpeak(msg.id, msg.text);
+                  }}
                   className={clsx(
-                    "flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs transition",
+                    "flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs transition font-medium",
                     activeSpeakingId === msg.id
                       ? "bg-accent/20 text-accent border border-accent/30"
-                      : "hover:bg-[#202430] text-textSecondary"
+                      : "bg-[#202430] hover:bg-accent/10 text-textSecondary hover:text-accent border border-border"
                   )}
                 >
                   {activeSpeakingId === msg.id ? (
@@ -813,10 +845,5 @@ Continue immediately after Part 4
   </div>
 
 </div>
-// =======================
-// PART 6 / 6
-// Final Closing
-// =======================
-
   );
 }
