@@ -53,27 +53,47 @@ class RAGService:
         ]
 
     @staticmethod
+    def _safe_join(items) -> str:
+        """Join a list that may contain strings or dicts safely."""
+        if not items:
+            return ""
+        result = []
+        for item in items:
+            if isinstance(item, str):
+                result.append(item)
+            elif isinstance(item, dict):
+                result.append(" ".join(str(v) for v in item.values()))
+            else:
+                result.append(str(item))
+        return " ".join(result)
+
+    @staticmethod
     def _document_text(document: Dict[str, Any]) -> str:
         values: Iterable[Any] = (
             document.get("title", ""),
-            document.get("name", ""),           # schemes use "name"
+            document.get("name", ""),
             document.get("billNumber", ""),
             document.get("summary", ""),
             document.get("content", ""),
-            document.get("description", ""),    # schemes use "description"
+            document.get("description", ""),
             document.get("category", ""),
             document.get("objectives", ""),
             document.get("provisions", ""),
-            document.get("eligibility", ""),    # schemes use "eligibility"
+            document.get("eligibility", ""),
             document.get("benefits", ""),
-            document.get("state", ""),          # schemes have "state"
-            " ".join(document.get("tags", []) or []),
-            " ".join(document.get("keyPoints", []) or []),
-            " ".join(document.get("eligibilityCriteria", []) or []),
-            document.get("extractedText", ""),
+            document.get("state", ""),
             document.get("userImpact", ""),
+            document.get("extractedText", ""),
         )
-        return "\n".join(str(value) for value in values if value)
+        text = "\n".join(str(v) for v in values if v)
+
+        # Handle list fields safely (may contain strings or dicts)
+        for field in ("tags", "keyPoints", "eligibilityCriteria"):
+            val = document.get(field)
+            if val:
+                text += "\n" + RAGService._safe_join(val)
+
+        return text
 
     def _profile_keywords(self, profile: Optional[Dict[str, Any]]) -> List[str]:
         if not profile:
