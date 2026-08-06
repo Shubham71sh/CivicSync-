@@ -6,24 +6,15 @@ import { useAuth } from "../../hooks/useAuth";
 import {
   LayoutDashboard,
   MapPin,
-  ShieldAlert,
   MessageSquare,
-  TrendingUp,
-  Archive as ArchiveIcon,
   Settings,
-  HelpCircle,
   Menu,
   X,
   FileText,
   Search,
-  Users,
   User,
-  Bookmark,
-  History,
-  Bell,
   Target,
   GitCompare,
-  BarChart2,
   CheckSquare,
   Upload,
   LogOut,
@@ -42,42 +33,32 @@ const navGroups = [
       { name: "Upload Bill", path: "/dashboard/upload", icon: Upload },
       { name: "Bill History", path: "/dashboard/bills", icon: FileText },
       { name: "Compare Bills", path: "/dashboard/compare", icon: GitCompare },
-      { name: "AI Summary", path: "/dashboard/ai-summary", icon: FileText },
       { name: "Loan Analyzer", path: "/dashboard/loan-analyzer", icon: IndianRupee },
       { name: "Insurance Analyzer", path: "/dashboard/insurance-analyzer", icon: ShieldCheck },
-      { name: "Corruption Detector", path: "/dashboard/fraud", icon: ShieldAlert },
       { name: "Civic GPS", path: "/dashboard/gps", icon: MapPin },
-      { name: "Impact Simulator", path: "/dashboard/impact", icon: TrendingUp },
       { name: "AI Chat", path: "/dashboard/chat", icon: MessageSquare },
     ]
   },
   {
-  title: "Gov Services",
-  items: [
-    { name: "Scheme Finder", path: "/dashboard/scheme", icon: Search },
-    { name: "Eligibility Checker", path: "/dashboard/eligibility", icon: CheckSquare },
-    { name: "Benefits Tracker", path: "/dashboard/benefits", icon: Target },
-    { name: "Scheme Alerts", path: "/dashboard/scheme-notifications", icon: Sparkles },
-    { name: "Disaster Relief", path: "/dashboard/disaster-relief", icon: LifeBuoy },
-    { name: "Townhall Events", path: "/dashboard/townhall", icon: Users },
-  ]
-},
+    title: "Gov Services",
+    items: [
+      { name: "Scheme Finder", path: "/dashboard/scheme", icon: Search },
+      { name: "Eligibility Checker", path: "/dashboard/eligibility", icon: CheckSquare },
+      { name: "Benefits Tracker", path: "/dashboard/benefits", icon: Target },
+      { name: "Scheme Alerts", path: "/dashboard/scheme-notifications", icon: Sparkles },
+      { name: "Disaster Relief", path: "/dashboard/disaster-relief", icon: LifeBuoy },
+    ]
+  },
   {
     title: "My Account",
     items: [
       { name: "My Profile", path: "/dashboard/profile", icon: User },
-      { name: "My Analyses", path: "/dashboard/analyses", icon: History },
-      { name: "Saved Bills", path: "/dashboard/saved", icon: Bookmark },
-      { name: "Document Vault", path: "/dashboard/archive", icon: ArchiveIcon },
-      { name: "Notifications", path: "/dashboard/notifications", icon: Bell },
     ]
   }
 ];
 
 const bottomNav = [
-  { name: "Reports & Analytics", path: "/dashboard/reports", icon: BarChart2 },
   { name: "Settings", path: "/dashboard/settings", icon: Settings },
-  { name: "Help Center", path: "/dashboard/support", icon: HelpCircle },
 ];
 
 function NavItem({ item, isActive, onClick }) {
