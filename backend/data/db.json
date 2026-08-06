@@ -2,106 +2,97 @@
   "conversations": [
     {
       "userId": "demo_user_001",
-      "title": "New Chat",
-      "createdAt": "2026-07-19T13:41:58.724595Z",
-      "updatedAt": "2026-07-19T13:42:38.665665Z",
-      "_id": "6a5cd42626e184c5252de0c9"
-    },
-    {
-      "userId": "demo_user_001",
       "title": "Eligible Government Schemes Inquiry",
-      "createdAt": "2026-07-19T13:53:00.532697Z",
-      "updatedAt": "2026-07-19T13:53:03.209291Z",
-      "_id": "6a5cd6bcb3fa8be752e11f0c"
+      "createdAt": "2026-07-20T08:28:59.453109Z",
+      "updatedAt": "2026-07-20T08:29:02.390269Z",
+      "_id": "6a5ddc4b896b45ffe4572c2b"
     },
     {
       "userId": "demo_user_001",
-      "title": "Current Law Discussion Forum",
-      "createdAt": "2026-07-19T13:55:21.301524Z",
-      "updatedAt": "2026-07-19T13:57:27.711358Z",
-      "_id": "6a5cd749b3fa8be752e11f0f"
+      "title": "PM Vishwakarma Scheme Information",
+      "createdAt": "2026-07-20T08:29:24.342234Z",
+      "updatedAt": "2026-07-20T08:29:26.643366Z",
+      "_id": "6a5ddc64896b45ffe4572c2e"
+    },
+    {
+      "userId": "demo_user_001",
+      "title": "Eligible Government Schemes Discussion",
+      "createdAt": "2026-07-20T12:54:05.036780Z",
+      "updatedAt": "2026-07-20T12:54:09.716044Z",
+      "_id": "6a5e1a6dd6bbde8bbffb535f"
+    },
+    {
+      "userId": "demo_user_001",
+      "title": "Infrastructure Act 2024 Summary",
+      "createdAt": "2026-07-24T07:49:45.713247Z",
+      "updatedAt": "2026-07-24T07:49:49.309812Z",
+      "_id": "6a631919b6c3751670586465"
     }
   ],
   "chat_history": [
     {
-      "conversationId": "6a5cd42626e184c5252de0c9",
+      "conversationId": "6a5ddc4b896b45ffe4572c2b",
       "userId": "demo_user_001",
       "type": "user",
       "text": "What schemes am I eligible for?",
-      "timestamp": "2026-07-19T13:42:01.610881Z",
-      "_id": "6a5cd42926e184c5252de0ca"
+      "timestamp": "2026-07-20T08:29:02.343853Z",
+      "_id": "6a5ddc4e896b45ffe4572c2c"
     },
     {
-      "conversationId": "6a5cd42626e184c5252de0c9",
+      "conversationId": "6a5ddc4b896b45ffe4572c2b",
       "userId": "demo_user_001",
       "type": "bot",
-      "text": "## Direct Answer\nYou are eligible for the PM Kaushal Vikas Yojana scheme.\n\n## Profile Details Considered\nThe profile details considered for this recommendation include:\n- Location: Central District, Jharkhand\n- Age: 18\n- Profession: Tech Professional\n- Income: $50,000 - $100,000\n- Employment Status: Employed\n- Category: farmer\n- Household Size: 11\n\n## Matching Scheme(s)\n\n### Scheme 1: PM Kaushal Vikas Yojana\n#### Scheme Name\nPM Kaushal Vikas Yojana\n#### Eligibility Status\nEligible\n#### Reason\nYou are an Indian citizen and a youth seeking skill training, which aligns with the eligibility criteria of the PM Kaushal Vikas Yojana scheme.\n#### Benefits\nFree training, certification, and placement assistance.\n#### Official Source\nhttps://www.pmkvyofficial.org\n#### Application Process\nNot specified in the provided document.\n\nNote: The PM Vishwakarma and Startup India schemes do not match your profile because the PM Vishwakarma scheme is for traditional artisans or craftspeople, and the Startup India scheme is for recognized startups with Indian founders, which does not align with the provided profession or employment status.",
-      "timestamp": "2026-07-19T13:42:01.629793Z",
-      "_id": "6a5cd42926e184c5252de0cb"
+      "text": "## Direct Answer\nYou are eligible for the PM Kaushal Vikas Yojana scheme.\n\n## Profile Details Considered\nThe following details from your profile were considered: Age (18), Location (Central District, Jharkhand), Profession (Tech Professional), Income ($50,000 - $100,000), Category (farmer), and Employment Status (Employed).\n\n## Matching Scheme(s)\n\n### Scheme 1: PM Kaushal Vikas Yojana\nScheme Name: PM Kaushal Vikas Yojana\nEligibility Status: Eligible\nReason: You are an Indian citizen and a youth seeking skill training, which matches the eligibility criteria for PM Kaushal Vikas Yojana.\nBenefits: Free training, certification, and placement assistance.\nOfficial Source: https://www.pmkvyofficial.org\nApplication Process: Not specified in the provided document.\n\nNote: Although your category is listed as \"farmer\", the PM Kaushal Vikas Yojana does not specifically exclude individuals from other categories, and your age and profession do not disqualify you from the scheme. However, it is essential to verify the application process and any additional requirements through the official source.\n\nOther schemes like PM Vishwakarma and Startup India do not match your profile as closely, given the information provided. PM Vishwakarma is focused on traditional artisans and craftspeople, and Startup India is geared towards recognized startups with Indian founders, which does not directly align with your current profession or employment status.",
+      "timestamp": "2026-07-20T08:29:02.375044Z",
+      "_id": "6a5ddc4e896b45ffe4572c2d"
     },
     {
-      "conversationId": "6a5cd42626e184c5252de0c9",
+      "conversationId": "6a5ddc64896b45ffe4572c2e",
       "userId": "demo_user_001",
       "type": "user",
-      "text": "what is PM Vishwakarma?",
-      "timestamp": "2026-07-19T13:42:38.609786Z",
-      "_id": "6a5cd44e26e184c5252de0cc"
+      "text": "what is PM vishwakarma",
+      "timestamp": "2026-07-20T08:29:26.589511Z",
+      "_id": "6a5ddc66896b45ffe4572c2f"
     },
     {
-      "conversationId": "6a5cd42626e184c5252de0c9",
+      "conversationId": "6a5ddc64896b45ffe4572c2e",
       "userId": "demo_user_001",
       "type": "bot",
-      "text": "## Direct Answer\nThe PM Vishwakarma scheme is a government initiative that provides end-to-end support to traditional artisans and craftspeople.\n\n## Profile Details Considered\nThe profile details considered for this explanation include:\n- Location: Central District, Jharkhand\n- Age: 18\n- Profession: Tech Professional\n- Income: $50,000 - $100,000\n- Employment Status: Employed\n- Category: farmer\n- Household Size: 11\n\n## Matching Scheme(s)\n\n### Scheme 1: PM Vishwakarma\n#### Scheme Name\nPM Vishwakarma\n#### Eligibility Status\nNot Eligible\n#### Reason\nYou are a tech professional, which does not align with the eligibility criteria of the PM Vishwakarma scheme that is specifically for traditional artisans or craftspeople.\n#### Benefits\nSkill training, toolkit incentive, collateral-free loans.\n#### Official Source\nhttps://pmvishwakarma.gov.in\n#### Application Process\nNot specified in the provided document.\n\nNote: The provided document \"PM Vishwakarma\" was used for this analysis.",
-      "timestamp": "2026-07-19T13:42:38.644587Z",
-      "_id": "6a5cd44e26e184c5252de0cd"
+      "text": "## Direct Answer\nThe PM Vishwakarma scheme is a government initiative providing end-to-end support to traditional artisans and craftspeople.\n\n## Profile Details Considered\nTo determine eligibility for the PM Vishwakarma scheme, the following profile details were considered: Age, Location, Profession, Income, Category.\n\n## Matching Scheme(s)\n\n### PM Vishwakarma\n#### Scheme Name\nPM Vishwakarma\n\n#### Eligibility Status\nNot Eligible\n\n#### Reason\nThe citizen's profession is listed as a Tech Professional, but the scheme is specifically for traditional artisans or craftspeople. The category is listed as farmer, which also does not match the eligibility criteria.\n\n#### Benefits\nSkill training, toolkit incentive, collateral-free loans.\n\n#### Official Source\nhttps://pmvishwakarma.gov.in\n\n#### Application Process\nNot applicable due to ineligibility.\n\nNote: The provided document title used for this evaluation is \"PM Vishwakarma\".",
+      "timestamp": "2026-07-20T08:29:26.617123Z",
+      "_id": "6a5ddc66896b45ffe4572c30"
     },
     {
-      "conversationId": "6a5cd6bcb3fa8be752e11f0c",
+      "conversationId": "6a5e1a6dd6bbde8bbffb535f",
       "userId": "demo_user_001",
       "type": "user",
       "text": "What schemes am I eligible for?",
-      "timestamp": "2026-07-19T13:53:03.171245Z",
-      "_id": "6a5cd6bfb3fa8be752e11f0d"
+      "timestamp": "2026-07-20T12:54:09.657722Z",
+      "_id": "6a5e1a71d6bbde8bbffb5360"
     },
     {
-      "conversationId": "6a5cd6bcb3fa8be752e11f0c",
+      "conversationId": "6a5e1a6dd6bbde8bbffb535f",
       "userId": "demo_user_001",
       "type": "bot",
-      "text": "## Direct Answer\n\nYou are eligible for the PM Kaushal Vikas Yojana scheme.\n\n## Profile Details Considered\n\nThe following profile details were considered: Age (18), Location (Central District, Jharkhand), Profession (Tech Professional), Income ($50,000 - $100,000), Employment Status (Employed), Category (farmer), Household Size (11).\n\n## Matching Scheme(s)\n\n### Scheme 1: PM Kaushal Vikas Yojana\n\nScheme Name: PM Kaushal Vikas Yojana\n\nEligibility Status: Eligible\n\nReason: You are an Indian Citizen and a youth seeking skill training, which matches the eligibility criteria for PM Kaushal Vikas Yojana.\n\nBenefits: Free training, certification, and placement assistance.\n\nOfficial Source: https://www.pmkvyofficial.org\n\nApplication Process: Not specified in the provided document.\n\nNote: Although your profession is listed as Tech Professional, the scheme's eligibility criteria do not exclude individuals based on their current profession, focusing instead on their desire for skill development training. \n\n### Scheme 2: PM Vishwakarma\n\nScheme Name: PM Vishwakarma\n\nEligibility Status: Not Eligible\n\nReason: You do not match the eligibility criteria for PM Vishwakarma as there is no indication that you are a traditional artisan or craftsperson.\n\n### Scheme 3: Startup India\n\nScheme Name: Startup India\n\nEligibility Status: Not Eligible\n\nReason: You do not match the eligibility criteria for Startup India as there is no indication that you are a recognized startup or have Indian founders in the context of starting a new business.",
-      "timestamp": "2026-07-19T13:53:03.195328Z",
-      "_id": "6a5cd6bfb3fa8be752e11f0e"
+      "text": "## Direct Answer\nYou are eligible for the PM Kaushal Vikas Yojana scheme.\n\n## Profile Details Considered\nThe following profile details were considered: Location, Age, Profession, Income, Category, and Employment Status.\n\n## Matching Scheme(s)\n\n### Scheme 1: PM Kaushal Vikas Yojana\nScheme Name: PM Kaushal Vikas Yojana\nEligibility Status: Eligible\nReason: You are an Indian citizen and a youth seeking skill training, which aligns with the eligibility criteria of the scheme.\nBenefits: Free training, certification, and placement assistance.\nOfficial Source: https://www.pmkvyofficial.org\nApplication Process: Not specified in the provided document.\n\nNote: Although your category is listed as \"farmer\", the PM Kaushal Vikas Yojana scheme does not explicitly exclude individuals from this category, and your profession is listed as \"Tech Professional\", which may be relevant to the scheme's focus on skill development training. However, it is essential to verify the application process and any additional requirements with the official source.\n\nThe other schemes, PM Vishwakarma and Startup India, do not match your profile. PM Vishwakarma requires the individual to be a traditional artisan or craftsperson, which does not align with your profession. Startup India requires the individual to be a recognized startup or have Indian founders, which does not match your employment status or category.",
+      "timestamp": "2026-07-20T12:54:09.693328Z",
+      "_id": "6a5e1a71d6bbde8bbffb5361"
     },
     {
-      "conversationId": "6a5cd749b3fa8be752e11f0f",
+      "conversationId": "6a631919b6c3751670586465",
       "userId": "demo_user_001",
       "type": "user",
-      "text": "What is current law going on",
-      "timestamp": "2026-07-19T13:55:23.634080Z",
-      "_id": "6a5cd74bb3fa8be752e11f10"
+      "text": "Summarize the Infrastructure Act 2024",
+      "timestamp": "2026-07-24T07:49:49.199883Z",
+      "_id": "6a63191db6c3751670586466"
     },
     {
-      "conversationId": "6a5cd749b3fa8be752e11f0f",
+      "conversationId": "6a631919b6c3751670586465",
       "userId": "demo_user_001",
       "type": "bot",
-      "text": "## Direct Answer\nThe current law is the Right to Information Act 2005.\n\n## Profile Details Considered\nAge: 18, Location: Central District, Jharkhand, Profession: Tech Professional, Income: $50,000 - $100,000, Category: farmer\n\n## Matching Scheme(s)\n\n### Right to Information Act 2005\n\nScheme Name: Right to Information Act 2005\nEligibility Status: Eligible\nReason: The Right to Information Act 2005 is applicable to all citizens of India, and the provided profile does not contain any information that would make the citizen ineligible for this law.\nBenefits: Access to government information, Promotes accountability\nOfficial Source: https://rti.gov.in\nApplication Process: Not applicable, as this is a law that provides a right to citizens rather than a scheme with an application process.",
-      "timestamp": "2026-07-19T13:55:23.682599Z",
-      "_id": "6a5cd74bb3fa8be752e11f11"
-    },
-    {
-      "conversationId": "6a5cd749b3fa8be752e11f0f",
-      "userId": "demo_user_001",
-      "type": "user",
-      "text": ".....................",
-      "timestamp": "2026-07-19T13:57:27.677200Z",
-      "_id": "6a5cd7c7b3fa8be752e11f12"
-    },
-    {
-      "conversationId": "6a5cd749b3fa8be752e11f0f",
-      "userId": "demo_user_001",
-      "type": "bot",
-      "text": "It seems like the user hasn't asked a question yet. Please go ahead and ask your question, and I'll be happy to help!",
-      "timestamp": "2026-07-19T13:57:27.698702Z",
-      "_id": "6a5cd7c7b3fa8be752e11f13"
+      "text": "## Direct Answer\nThere is no information about the Infrastructure Act 2024 in the provided documents.\n\n## Profile Details Considered\nThe citizen profile details considered are: Location (Central District, Jharkhand), Age (18), Profession (Tech Professional), Income ($50,000 - $100,000), Employment Status (Employed), Category (farmer), and Household Size (11).\n\n## Matching Scheme(s)\nNo government schemes matching the current profile were found.",
+      "timestamp": "2026-07-24T07:49:49.255233Z",
+      "_id": "6a63191db6c3751670586467"
     }
   ],
   "profiles": [
