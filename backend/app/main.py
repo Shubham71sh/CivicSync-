@@ -9,6 +9,7 @@ from pydantic import BaseModel
 # ── Firebase / Firestore ──────────────────────────────────────────────────────
 from app.core.firebase import get_db
 from app.services.seed_service import seed_schemes
+from app.services import vector_store
 
 # ── Module 3 routers (Transparency Engine) ───────────────────────────────────
 from app.api.routes import bills, compare, fake_news
@@ -56,6 +57,15 @@ async def lifespan(app: FastAPI):
             logger.info(f"Seeded {seeded} government schemes.")
         else:
             logger.info("Schemes already seeded.")
+
+        # Warm up FAISS index at startup — first user request won't pay the
+        # 2-3s encoding cost
+        logger.info("Warming up FAISS vector index...")
+        try:
+            await vector_store.get_index()
+            logger.info("FAISS index ready.")
+        except Exception as e:
+            logger.warning(f"FAISS warmup failed (non-fatal): {e}")
     except Exception as e:
         logger.critical(f"Startup error: {e}", exc_info=True)
         raise
