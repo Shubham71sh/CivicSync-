@@ -18,6 +18,10 @@ google-auth>=2.14.0
 # ── AI Services ───────────────────────────────────────────────────────────────
 google-genai>=0.1.1
 
+# ── Vector Search (FAISS + MiniLM embeddings) ─────────────────────────────────
+faiss-cpu>=1.7.4
+sentence-transformers>=3.0.0
+
 # ── PDF Processing ────────────────────────────────────────────────────────────
 pypdf>=3.9.0
 

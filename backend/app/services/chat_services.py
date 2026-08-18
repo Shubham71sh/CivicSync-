@@ -15,16 +15,8 @@ load_dotenv()
 
 def _generate_title(question: str) -> str:
     """Ask the AI to produce a short, relevant chat title from the first message."""
-    prompt = f"""Generate a short chat title (4-6 words max) for a conversation that starts with this message:
-
-"{question}"
-
-Rules:
-- Be specific and relevant (e.g. "PM Vishwakarma Scheme Details")
-- No quotes, no punctuation at the end
-- Title case
-- Return ONLY the title, nothing else
-
+    prompt = f"""Generate a short chat title (4-6 words max) for this message: "{question}"
+Rules: Be specific, no quotes, no punctuation, Title Case, return ONLY the title.
 Title:"""
     try:
         title = call_gemini(prompt).strip().strip('"').strip("'")
@@ -34,28 +26,8 @@ Title:"""
 
 
 def _build_prompt(question: str, language: str, profile=None, history=None, documents=None) -> str:
-    """Build the best prompt based on what context is available."""
-
-    # If we have documents from RAG — use structured prompt
-    if documents:
-        return PromptBuilder.build(profile, history, documents, question, language)
-
-    # No documents — answer from AI knowledge directly
-    return f"""You are CivicSync AI, a knowledgeable assistant for Indian citizens.
-
-Answer the following question fully and accurately.
-
-Question: {question}
-
-Instructions:
-- Answer directly and completely from your knowledge
-- If it is about an Indian government scheme, policy, law or act — provide details like eligibility, benefits, how to apply
-- If it is a general knowledge question — answer normally
-- If it is a programming question — provide working code
-- Never say you cannot find documents or that no schemes match
-- Always give a helpful, complete answer
-- You MUST respond entirely in {language}. If {language} is Hindi, write the ENTIRE response in Hindi (Devanagari script). If {language} is Punjabi, respond in Punjabi. If {language} is Bengali, respond in Bengali. If {language} is Telugu, respond in Telugu.
-"""
+    """Always use PromptBuilder so the citizen profile is included in every prompt."""
+    return PromptBuilder.build(profile, history, documents or [], question, language)
 
 
 class ChatService:
@@ -83,44 +55,38 @@ class ChatService:
             conversation_id = conversation["_id"]
 
         # ----------------------------------
-        # Profile + History
+        # Profile + History — fetched in parallel
         # ----------------------------------
         print("STEP 1: chat() started")
-        profile = await self.profile.get_profile(user_id, user_defaults=current_user)
-
-        print("STEP 2: profile loaded")
-        history = await self.memory.get_recent_context(conversation_id)
-        print("STEP 3: history loaded")
+        profile, history = await asyncio.gather(
+            self.profile.get_profile(user_id, user_defaults=current_user),
+            self.memory.get_recent_context(conversation_id),
+        )
+        print("STEP 2: profile + history loaded")
 
         # ----------------------------------
         # Question Classification
         # ----------------------------------
         router = QuestionRouter()
         question_type = router.classify(question)
-        print("STEP 4: question type =", question_type)
+        print("STEP 3: question type =", question_type)
 
         documents = []
         sources = []
 
         # ----------------------------------
-        # Try RAG for government questions
+        # RAG — runs for ALL question types
+        # FAISS semantic search is fast enough (< 5ms on warm cache) and smart
+        # enough to find relevant docs even for general questions.
+        # Only skip for purely conversational messages with no keywords.
         # ----------------------------------
-        if question_type in [
-            "government_scheme",
-            "government_policy",
-            "government_law",
-            "government_act",
-            "government_bill",
-            "government_faq",
-            "profile",
-        ]:
-            print("STEP 5: searching RAG")
-            documents = await self.rag.search_documents(
-                question, profile=profile, user_id=user_id
-            )
-            print("STEP 6: RAG returned", len(documents), "documents")
-            if documents:
-                sources = await self.rag.get_sources(documents)
+        print("STEP 4: searching RAG")
+        documents = await self.rag.search_documents(
+            question, profile=profile, user_id=user_id
+        )
+        print("STEP 5: RAG returned", len(documents), "documents")
+        if documents:
+            sources = await self.rag.get_sources(documents)
 
         # ----------------------------------
         # Build prompt (with or without docs)
@@ -130,22 +96,31 @@ class ChatService:
         # ----------------------------------
         # Call AI + generate title in parallel
         # ----------------------------------
-        print("STEP 7: calling AI")
+        print("STEP 6: calling AI")
         try:
             if is_new_conversation:
-                answer = await asyncio.wait_for(
+                # Run answer and title generation concurrently — saves ~800 ms
+                answer_task = asyncio.wait_for(
                     asyncio.to_thread(call_gemini, prompt),
                     timeout=60,
                 )
+                title_task = asyncio.wait_for(
+                    asyncio.to_thread(_generate_title, question),
+                    timeout=10,
+                )
+                results = await asyncio.gather(answer_task, title_task, return_exceptions=True)
+
+                answer = results[0] if not isinstance(results[0], Exception) else None
+                if isinstance(results[0], Exception):
+                    print(f"\n========== ANSWER TASK FAILED ==========")
+                    print(f"Type   : {type(results[0]).__name__}")
+                    print(f"Message: {results[0]}")
+                    print(f"=========================================\n")
+                    raise results[0]
                 answer = (answer or "").strip()
 
-                try:
-                    smart_title = await asyncio.wait_for(
-                        asyncio.to_thread(_generate_title, question),
-                        timeout=10,
-                    )
-                except Exception:
-                    smart_title = question[:40]
+                smart_title = results[1] if not isinstance(results[1], Exception) else question[:40]
+                smart_title = (smart_title or question[:40]).strip()
 
                 await self.memory.rename_conversation(conversation_id, smart_title)
                 print(f"STEP 8: title set to '{smart_title}'")

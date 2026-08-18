@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL   = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_MODEL   = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
 GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions"
 
 
@@ -33,7 +33,7 @@ def call_gemini(prompt: str) -> str:
             {"role": "user", "content": prompt}
         ],
         "temperature": 0.7,
-        "max_tokens": 2048,
+        "max_tokens": 1024,
     }
 
     with httpx.Client(timeout=60) as client:
@@ -45,9 +45,13 @@ def call_gemini(prompt: str) -> str:
         )
 
     data = response.json()
+    print(f"GROQ RESPONSE: finish_reason={data.get('choices', [{}])[0].get('finish_reason')} usage={data.get('usage')}")
 
     try:
-        return data["choices"][0]["message"]["content"]
+        content = data["choices"][0]["message"]["content"]
+        if not content or not content.strip():
+            raise RuntimeError(f"Groq returned empty content. finish_reason={data['choices'][0].get('finish_reason')} usage={data.get('usage')}")
+        return content
     except (KeyError, IndexError) as exc:
         raise RuntimeError(
             f"Unexpected Groq response structure: {data}"

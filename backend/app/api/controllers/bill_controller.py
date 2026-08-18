@@ -134,6 +134,9 @@ class BillController:
 
         try:
             bill_doc, bill_id = await loop.run_in_executor(None, _db_operations)
+            # Invalidate RAG cache so the new bill is searchable immediately
+            from app.services.rag_service import RAGService
+            RAGService.invalidate_cache()
         except Exception as e:
             if os.path.exists(file_path):
                 os.remove(file_path)
