@@ -50,10 +50,7 @@ async def analyze_loan_document(
         f.write(contents)
 
     try:
-        loop = asyncio.get_event_loop()
-        doc = await loop.run_in_executor(
-            None,
-            svc.analyze_loan_document,
+        doc = await svc.analyze_loan_document(
             file_path,
             file.filename,
             current_user["_id"],

@@ -49,10 +49,7 @@ async def analyze_insurance_policy(
         f.write(contents)
 
     try:
-        loop = asyncio.get_event_loop()
-        doc = await loop.run_in_executor(
-            None,
-            svc.analyze_insurance_policy,
+        doc = await svc.analyze_insurance_policy(
             file_path,
             file.filename,
             current_user["_id"],
