@@ -1,94 +1,107 @@
+"""
+Compare Service — Side-by-Side Bill Comparison
+Retrieves corresponding chunks for each bill using semantic search,
+and uses AIOrchestrator (Qwen3 via Ollama / fallbacks) to output a structured comparison.
+"""
+
 import json
 import logging
 from typing import List, Dict, Any
-from app.config.gemini import get_gemini_client
+
+from app.ai.orchestrator import orchestrator
+from app.ai.retrieval.retrieval_service import get_retrieval_service
 
 logger = logging.getLogger("uvicorn.error")
 
-def compare_bills_with_ai(bills: List[Dict[str, Any]]) -> Dict[str, Any]:
+
+async def compare_bills_with_ai(bills: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
-    Compare multiple bill documents side-by-side using Gemini AI.
-    Returns lists of similarities and differences.
+    Compare multiple bill documents side-by-side using vector RAG.
     """
-    client = get_gemini_client()
-    
     if len(bills) < 2:
         return {
             "similarities": ["Insufficient bills provided for side-by-side comparison."],
             "differences": ["Please supply at least two bills to generate differences."]
         }
 
-    # Prepare inputs for prompt
-    bills_context = []
-    for idx, b in enumerate(bills):
-        text_snippet = b.get("extractedText", "")[:10000] # truncate
-        
-        # DEFENSIVE: Convert summary from list to string if needed
-        summary = b.get('summary', '')
-        if isinstance(summary, list):
-            summary = "\n\n".join(summary)
-        
-        bills_context.append(f"""
-        Bill #{idx+1}: {b.get('title')} ({b.get('billNumber')})
-        Summary: {summary}
-        Key Points: {', '.join(b.get('keyPoints', []))}
-        Content Snippet:
-        {text_snippet}
-        """)
+    retrieval_service = get_retrieval_service()
     
-    joined_context = "\n\n---\n\n".join(bills_context)
+    # Define keywords representing key comparison areas
+    comparison_query = "eligibility criteria benefits exemptions penalties regulatory timeline important dates financial provisions citizen impact definitions major changes"
+
+    # Retrieve relevant segments for Bill A and Bill B independently
+    bill_contexts = []
+    for idx, b in enumerate(bills):
+        doc_id = b.get("id") or b.get("_id") or "temp_doc"
+        retrieved_text = ""
+        
+        try:
+            retrieval_result = await retrieval_service.retrieve(
+                query=comparison_query,
+                filters={"document_id": doc_id},
+                top_k=10
+            )
+            if retrieval_result.chunks:
+                retrieved_text = "\n\n".join([c.text for c in retrieval_result.chunks])
+                logger.info(f"[Comparison] Retrieved {len(retrieval_result.chunks)} chunks for Bill {b.get('title')}.")
+        except Exception as e:
+            logger.error(f"[Comparison] RAG retrieval failed for Bill {doc_id}: {e}")
+
+        # Fallback to truncated raw text if retrieval was empty
+        if not retrieved_text:
+            retrieved_text = b.get("extractedText", "")[:12000]
+
+        bill_contexts.append(f"""
+=== BILL #{idx+1}: {b.get('title')} ({b.get('billNumber', 'N/A')}) ===
+Retrieved Clauses:
+{retrieved_text}
+""")
+
+    joined_context = "\n\n---\n\n".join(bill_contexts)
 
     prompt = f"""
-    You are a legislative analyst. Analyze and compare the following bills side-by-side.
-    
-    Identify:
-    1. similarities: List of 3-5 main points where the bills overlap, share common objectives, or have similar regulatory impacts.
-    2. differences: List of 3-5 key differences where the bills conflict, represent distinct approaches, or apply different penalties/rules.
-    
-    Provide output ONLY in valid JSON format inside a code block. Do not add introductory or surrounding text.
-    
-    JSON Schema:
-    {{
-      "similarities": ["similarity point 1", "similarity point 2"],
-      "differences": ["difference point 1", "difference point 2"]
-    }}
-    
-    Bills to compare:
-    {joined_context}
-    """
+You are an expert legislative and civic policy analyst. 
+Compare the following two bills side-by-side using ONLY the provided clauses below.
 
-    if client is None:
-        logger.warning("Gemini Client not available. Using mock bill comparison.")
-        return get_mock_comparison(bills)
+Focus on comparing:
+1. Eligibility and scope
+2. Benefits and exemptions
+3. Financial provisions and budgets
+4. Penalties and late fees
+5. Key dates and timelines
+6. Citizen and local community impact
+7. Major updates and differences in approaches
 
+Provide output ONLY in valid JSON format inside a code block. Do not add introductory or surrounding text.
+
+JSON Schema:
+{{
+  "similarities": ["similarity point 1", "similarity point 2"],
+  "differences": ["difference point 1", "difference point 2"]
+}}
+
+Bills to compare:
+{joined_context}
+"""
+
+    comparison = None
     try:
-        response = client.models.generate_content(
-            model="gemini-flash-lite-latest",
-            contents=prompt
-        )
-        response_text = response.text.strip()
-        
-        # Clean markdown code block if present
-        if response_text.startswith("```json"):
-            response_text = response_text[7:]
-        if response_text.endswith("```"):
-            response_text = response_text[:-3]
-        response_text = response_text.strip()
-        
-        comparison = json.loads(response_text)
-        logger.info("Successfully generated AI bill comparison using Gemini.")
-        return {
-            "similarities": comparison.get("similarities", ["Both bills target public sector guidelines."]),
-            "differences": comparison.get("differences", ["Different penalty structures and timeline requirements."])
-        }
+        # Call the Orchestrator to generate side-by-side JSON comparison
+        comparison = orchestrator.generate_json(prompt, provider="gemini")
     except Exception as e:
-        logger.error(f"Gemini comparison failed: {e}. Falling back to mock comparison.")
+        logger.error(f"[Comparison] AI comparison failed: {e}")
+
+    if not comparison or not isinstance(comparison, dict):
+        logger.warning("[Comparison] AI failed to return valid JSON comparison. Using mock fallback.")
         return get_mock_comparison(bills)
+
+    return {
+        "similarities": comparison.get("similarities", ["Both bills target public sector guidelines."]),
+        "differences": comparison.get("differences", ["Different penalty structures and timeline requirements."])
+    }
+
 
 def get_mock_comparison(bills: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """
-    Returns realistic mock comparison data.
-    """
     titles = [b.get("title", "Selected Bill") for b in bills]
     return {
         "similarities": [
