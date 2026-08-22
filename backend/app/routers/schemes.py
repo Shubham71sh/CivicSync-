@@ -18,7 +18,8 @@ async def search_schemes(
     query = {"keyword": keyword, "category": category, "state": state,
              "page": page, "limit": limit}
     result = await scheme_service.get_all_schemes(
-        {k: v for k, v in query.items() if v is not None}
+        {k: v for k, v in query.items() if v is not None},
+        user_id=current_user.get("_id")
     )
     return {"success": True, **result}
 
@@ -35,7 +36,8 @@ async def get_all_schemes(
     query = {"keyword": keyword, "category": category, "state": state,
              "page": page, "limit": limit}
     result = await scheme_service.get_all_schemes(
-        {k: v for k, v in query.items() if v is not None}
+        {k: v for k, v in query.items() if v is not None},
+        user_id=current_user.get("_id")
     )
     return {"success": True, **result}
 

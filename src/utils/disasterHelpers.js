@@ -269,12 +269,12 @@ export function generateDocumentChecklist(disasterType = "flood", scheme = null)
 
   // Core base documents required for all government relief claims
   const commonDocs = [
-    { name: "Aadhaar Card", status: "Verified", size: "2.1 MB" },
-    { name: "PAN Card", status: "Verified", size: "1.4 MB" },
-    { name: "Bank Passbook", status: "Verified", size: "1.8 MB" },
-    { name: "Residence Proof", status: "Uploaded", size: "1.9 MB" },
+    { name: "Aadhaar Card", status: "Uploaded", size: "2.1 MB" },
+    { name: "PAN Card", status: "Required", size: "" },
+    { name: "Bank Passbook", status: "Required", size: "" },
+    { name: "Residence Proof", status: "Required", size: "" },
     { name: "Damage Photos", status: "Verified", size: "4.2 MB" },
-    { name: "Geo-tagged Images", status: "Uploaded", size: "5.4 MB" }
+    { name: "Geo-tagged Images", status: "Verified", size: "5.4 MB" }
   ];
 
   let list = [];

@@ -1,14 +1,18 @@
 import traceback
 import asyncio
-
+from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 
 from app.services.memory_service import MemoryService
 from app.services.profile_service import ProfileService
 from app.services.prompt_builder import PromptBuilder
-from app.services.rag_service import RAGService
 from app.services.question_router import QuestionRouter
-from app.services.gemini_client import call_gemini
+
+# Import RAG integrations
+from app.ai.orchestrator import orchestrator
+from app.ai.retrieval.retrieval_service import get_retrieval_service
+from app.ai.rag.context_builder import ContextBuilder
+from app.ai.rag.citation_service import CitationService
 
 load_dotenv()
 
@@ -19,7 +23,7 @@ def _generate_title(question: str) -> str:
 Rules: Be specific, no quotes, no punctuation, Title Case, return ONLY the title.
 Title:"""
     try:
-        title = call_gemini(prompt).strip().strip('"').strip("'")
+        title = orchestrator.generate(prompt).strip().strip('"').strip("'")
         return title[:60] if title else question[:40]
     except Exception:
         return question[:40]
@@ -36,7 +40,7 @@ class ChatService:
         self.db = db
         self.memory = MemoryService(db)
         self.profile = ProfileService(db)
-        self.rag = RAGService(db)
+        self.retrieval_service = get_retrieval_service()
 
     async def chat(
         self,
@@ -71,41 +75,73 @@ class ChatService:
         question_type = router.classify(question)
         print("STEP 3: question type =", question_type)
 
-        documents = []
+        chunks = []
         sources = []
+        confidence = 1.0
 
         # ----------------------------------
-        # RAG — runs for ALL question types
-        # FAISS semantic search is fast enough (< 5ms on warm cache) and smart
-        # enough to find relevant docs even for general questions.
-        # Only skip for purely conversational messages with no keywords.
+        # RAG — runs for relevant question types
         # ----------------------------------
-        print("STEP 4: searching RAG")
-        documents = await self.rag.search_documents(
-            question, profile=profile, user_id=user_id
-        )
-        print("STEP 5: RAG returned", len(documents), "documents")
-        if documents:
-            sources = await self.rag.get_sources(documents)
+        if question_type in [
+            "government_scheme",
+            "government_policy",
+            "government_law",
+            "government_act",
+            "government_bill",
+            "government_faq",
+            "profile",
+        ]:
+            print("STEP 5: searching RAG")
+            try:
+                # We retrieve chunks using the retrieval pipeline
+                retrieval_result = await self.retrieval_service.retrieve(
+                    query=question,
+                    filters=None  # No global metadata filter for general chat
+                )
+                chunks = retrieval_result.chunks
+                confidence = retrieval_result.confidence
+                print(f"STEP 6: RAG returned {len(chunks)} chunks, confidence {confidence}")
+                
+                if chunks:
+                    sources = CitationService.format_sources_as_strings(chunks)
+            except Exception as e:
+                print(f"RAG search failed: {e}")
+                traceback.print_exc()
 
         # ----------------------------------
         # Build prompt (with or without docs)
         # ----------------------------------
-        prompt = _build_prompt(question, language, profile, history, documents)
+        if chunks:
+            prompt = ContextBuilder.build(
+                question=question,
+                chunks=chunks,
+                profile=profile,
+                history=history,
+                language=language
+            )
+        else:
+            prompt = _build_prompt(question, language, profile, history)
 
         # ----------------------------------
         # Call AI + generate title in parallel
         # ----------------------------------
         print("STEP 6: calling AI")
         try:
+            loop = asyncio.get_event_loop()
+            
+            # Helper function to generate chat response synchronously via executor
+            def _run_ai():
+                system_msg = "You are CivicSync AI, a helpful civic assistant. Rely strictly on retrieved facts." if chunks else None
+                return orchestrator.generate(prompt, system=system_msg)
+
             if is_new_conversation:
                 # Run answer and title generation concurrently — saves ~800 ms
                 answer_task = asyncio.wait_for(
-                    asyncio.to_thread(call_gemini, prompt),
+                    loop.run_in_executor(None, _run_ai),
                     timeout=60,
                 )
                 title_task = asyncio.wait_for(
-                    asyncio.to_thread(_generate_title, question),
+                    loop.run_in_executor(None, _generate_title, question),
                     timeout=10,
                 )
                 results = await asyncio.gather(answer_task, title_task, return_exceptions=True)
@@ -126,7 +162,7 @@ class ChatService:
                 print(f"STEP 8: title set to '{smart_title}'")
             else:
                 answer = await asyncio.wait_for(
-                    asyncio.to_thread(call_gemini, prompt),
+                    loop.run_in_executor(None, _run_ai),
                     timeout=60,
                 )
                 answer = (answer or "").strip()
@@ -156,4 +192,5 @@ class ChatService:
             "conversation_id": conversation_id,
             "response": answer,
             "sources": sources,
+            "confidence": confidence
         }

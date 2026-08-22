@@ -1,6 +1,19 @@
+import sys
+import os
+
+_backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
+
 from contextlib import asynccontextmanager
+import asyncio
 from typing import Any, Dict
 import logging
+
+# ── RAG / Open-Source AI Stack ────────────────────────────────────────────────
+from app.ai.retrieval.faiss_client import get_faiss_service
+from app.ai.embeddings.bge_m3 import get_embedding_service
+from app.ai.orchestrator import orchestrator
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,6 +30,10 @@ from app.api.routes import chat as chat_route
 
 # ── Module 2 routers (Disaster Relief Reports) ───────────────────────────────
 from app.routers import reports
+
+# ── Module 2 RAG (Disaster Relief RAG — isolated, does not touch AI Chat) ────
+from app.routers import disaster_rag
+from app.services.seed_disaster_rag import seed_disaster_rag_knowledge
 
 # ── Module 1 routers ─────────────────────────────────────────────────────────
 from app.routers import (
@@ -45,6 +62,9 @@ logger = logging.getLogger("uvicorn.error")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import threading
+    import time as _time
+
     logger.info("Starting CivicSync backend...")
     try:
         db = get_db()
@@ -66,11 +86,56 @@ async def lifespan(app: FastAPI):
             logger.info("FAISS index ready.")
         except Exception as e:
             logger.warning(f"FAISS warmup failed (non-fatal): {e}")
+
+        # Seed Disaster Relief RAG knowledge base (isolated collection)
+        rag_seeded = await seed_disaster_rag_knowledge()
+        if rag_seeded > 0:
+            logger.info(f"[DisasterRAG] Seeded {rag_seeded} knowledge chunks.")
+
+        # Fire-and-forget daemon thread: loads MiniLM model + FAISS index in background.
+        # Server starts accepting requests IMMEDIATELY — no blocking.
+        # First RAG request arriving before warmup finishes triggers lazy singleton load.
+        def _warmup_rag():
+            try:
+                from rag.embeddings import get_embedding_model
+                from rag.vector_store import get_vector_store
+                t0 = _time.time()
+                logger.info("[Warmup] Loading MiniLM all-MiniLM-L6-v2 model...")
+                get_embedding_model()
+                logger.info(f"[Warmup] MiniLM model loaded in {_time.time() - t0:.2f}s")
+                t1 = _time.time()
+                logger.info("[Warmup] Loading FAISS vector index...")
+                store = get_vector_store()
+                n = len(store.metadata)
+                logger.info(f"[Warmup] FAISS index loaded with {n} chunks in {_time.time() - t1:.2f}s")
+                logger.info(f"[Warmup] RAG warmup complete. Total: {_time.time() - t0:.2f}s")
+            except Exception as exc:
+                logger.warning(f"[Warmup] RAG warmup error (non-fatal): {exc}")
+
+        warmup_thread = threading.Thread(target=_warmup_rag, daemon=True, name="rag-warmup")
+        warmup_thread.start()
+        logger.info("[Lifespan] RAG warmup launched in background thread. Server is ready.")
+
+        # Initialize FAISS and warming embeddings model
+        logger.info("Checking Vector Database & Embeddings Model...")
+        faiss_svc = get_faiss_service()
+        if faiss_svc.is_available():
+            faiss_svc.ensure_collection()
+            logger.info("FAISS index checks complete.")
+        else:
+            logger.warning("FAISS is not running/available. App starting in fallback mode.")
+
+        # Trigger lazy warming of embedding model in background
+        loop = asyncio.get_running_loop()
+        loop.run_in_executor(None, get_embedding_service().is_available)
+        logger.info("Warming embedding model MiniLM in background...")
     except Exception as e:
         logger.critical(f"Startup error: {e}", exc_info=True)
         raise
     yield
     logger.info("CivicSync backend shutting down.")
+
+
 
 
 # ── App ───────────────────────────────────────────────────────────────────────
@@ -85,7 +150,14 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://localhost:3000",
+    ],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:[0-9]+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -128,6 +200,7 @@ if _has_translation:
 
 app.include_router(reports.router)
 app.include_router(disaster_schemes.router)
+app.include_router(disaster_rag.router)  # Disaster Relief RAG — Steps 5-8
 
 
 # ── Profile Model ─────────────────────────────────────────────────────────────
@@ -186,4 +259,65 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "healthy", "server": "running", "database": "Firestore"}
+    """
+    Health check endpoint.  Includes real AI/RAG service status so the
+    frontend can show an honest 'AI Online / AI Offline' indicator.
+    """
+    from rag.embeddings import _model_instance, _use_fallback, HAS_SENTENCE_TRANSFORMERS
+    from rag.vector_store import _vector_store_instance
+
+    # Real AI service status — based on actual singleton state
+    rag_model_loaded   = (_model_instance is not None) and (not _use_fallback)
+    faiss_index_loaded = (
+        _vector_store_instance is not None
+        and (
+            _vector_store_instance.index is not None
+            or _vector_store_instance.vectors is not None
+        )
+    )
+    gemini_key_set = bool(os.getenv("GEMINI_API_KEY", "").strip())
+
+    ai_status = "online" if (rag_model_loaded and faiss_index_loaded and gemini_key_set) else (
+        "warming_up" if (HAS_SENTENCE_TRANSFORMERS and not rag_model_loaded) else "offline"
+    )
+
+    return {
+        "status":              "healthy",
+        "server":              "running",
+        "database":            "Firestore",
+        "ai_status":           ai_status,          # "online" | "warming_up" | "offline"
+        "rag_model_loaded":    rag_model_loaded,
+        "faiss_index_loaded":  faiss_index_loaded,
+        "gemini_configured":   gemini_key_set,
+    }
+
+
+@app.get("/api/health/ai")
+def health_ai():
+    """
+    Detailed health check of the active local RAG and open-source AI integrations.
+    """
+    faiss_svc = get_faiss_service()
+    embed_svc = get_embedding_service()
+    status_ai = orchestrator.status()
+    
+    faiss_status = "connected" if faiss_svc.is_available() else "disconnected"
+    embedding_status = "loaded" if embed_svc.is_available() else "failed"
+    ollama_status = "connected" if status_ai.get("primary", {}).get("available") else "disconnected"
+    
+    # RAG state determination
+    rag_ready = "ready"
+    if faiss_status != "connected" or embedding_status != "loaded":
+        rag_ready = "partially_ready"
+    if faiss_status == "disconnected" and embedding_status == "failed":
+        rag_ready = "unavailable"
+
+    return {
+        "faiss": faiss_status,
+        "embedding_model": embedding_status,
+        "ollama": ollama_status,
+        "llm_model": status_ai.get("primary", {}).get("model", "unknown"),
+        "rag": rag_ready,
+        "fallback_provider": status_ai.get("fallback", {}).get("name", "none"),
+        "fallback_status": "connected" if status_ai.get("fallback", {}).get("available") else "disconnected"
+    }

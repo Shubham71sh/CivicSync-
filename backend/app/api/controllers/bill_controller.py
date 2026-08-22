@@ -68,9 +68,9 @@ class BillController:
                 detail=f"Failed to extract text from PDF: {str(e)}"
             )
 
-        # Call Gemini AI summary service to analyze the bill content
+        # Call RAG AI summary service to analyze the bill content
         try:
-            analysis = generate_bill_analysis(extracted_text, file.filename)
+            analysis = await generate_bill_analysis(extracted_text, file.filename, unique_id)
         except Exception as e:
             traceback.print_exc()
             if os.path.exists(file_path):

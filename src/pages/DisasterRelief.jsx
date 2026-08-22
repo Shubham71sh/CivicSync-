@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Building2, ChevronLeft, ChevronRight, ChevronDown, FileText, Mail, Send, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Building2, ChevronLeft, ChevronRight, ChevronDown, FileText, Mail, Send, Loader2, CheckCircle2, AlertCircle, Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
-import { flushSync } from "react-dom";
 import { useAuth } from "../hooks/useAuth";
+import Sidebar from "../components/shared/Sidebar";
 
 import StepperProgress from "../components/DisasterRelief/StepperProgress";
 import Step1DisasterSelect from "../components/DisasterRelief/Step1DisasterSelect";
@@ -15,7 +15,7 @@ import Step6Eligibility from "../components/DisasterRelief/Step6Eligibility";
 import Step7Documents from "../components/DisasterRelief/Step7Documents";
 import Step8ClaimTimeline from "../components/DisasterRelief/Step8ClaimTimeline";
 import Step9NearbyHelp from "../components/DisasterRelief/Step9NearbyHelp";
-// import FloatingAIChat from "../components/DisasterRelief/FloatingAIChat";
+import FloatingAIChat from "../components/DisasterRelief/FloatingAIChat";
 import { downloadCaseSummaryPDF } from "../utils/generatePdf";
 
 // import {
@@ -27,6 +27,7 @@ import { downloadCaseSummaryPDF } from "../utils/generatePdf";
 import {
   checkBackend,
   createReport,
+  getReportStatus,
   checkEligibility,
   saveDocuments,
   getDocuments,
@@ -35,7 +36,11 @@ import {
   saveNearbyHelp,
   getNearbyHelp,
   getSchemes,
-  submitReport
+  submitReport,
+  getRAGSchemes,
+  getRAGEligibility,
+  getRAGDocuments,
+  getRAGTimeline,
 } from "../services/api";
 
 import { getAssignedOfficer, getDynamicInspectionSlot } from "../utils/disasterHelpers";
@@ -46,7 +51,7 @@ const STEP_LABELS = [
   "Upload Evidence",
   "AI Analysis",
   "Damage Report",
-  "Gov. Schemes",
+  "Government Schemes",
   "Eligibility",
   "Documents",
   "Claim Timeline",
@@ -64,20 +69,157 @@ export default function DisasterRelief() {
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDisaster, setSelectedDisaster] = useState(null);
-  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [uploadedFiles, setUploadedFiles]   = useState([]);
+  const [evidenceResult, setEvidenceResult] = useState(null);  // validated evidence from Step 2
   const [reportId, setReportId] = useState(null);
   const [analysisData, setAnalysisData] = useState(null);
-  const [eligibilityData, setEligibilityData] = useState(null);
+  const [eligibilityData, setEligibilityData] = useState({});
   const [documents, setDocuments] = useState([]);
   const [timelineData, setTimelineData] = useState([]);
   const [officerData, setOfficerData] = useState(null);
   const [nearbyHelpData, setNearbyHelpData] = useState([]);
   const [governmentSchemes, setGovernmentSchemes] = useState([]);
-  const [selectedSchemeState, setSelectedSchemeState] = useState(null);
+  const [appliedSchemes, setAppliedSchemes] = useState([]); // multi-select array (user can apply to multiple schemes)
+  const [docSummary, setDocSummary] = useState([]); // lifted from Step 7 for Step 8 consumption
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [emailNotice, setEmailNotice] = useState(null);
   const [toast, setToast] = useState(null);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // RAG state — Disaster Relief specific (Steps 5–8)
+  const [ragSchemes, setRagSchemes] = useState(null);
+  const [ragEligibility, setRagEligibility] = useState({});
+  const [ragDocuments, setRagDocuments] = useState(null);
+  const [ragTimeline, setRagTimeline] = useState(null);
+  const [ragLoading, setRagLoading] = useState({});
+
+  // ── sessionStorage keys ────────────────────────────────────────────────
+  const SESSION_KEY_REPORT   = "dr_report_id";
+  const SESSION_KEY_DISASTER = "dr_disaster_type";
+  const SESSION_KEY_STEP     = "dr_current_step";
+
+  // ── Persist workflow identifiers to sessionStorage on every change ─────
+  // (Raw File objects cannot be serialised — only metadata from backend is restored)
+  useEffect(() => {
+    if (reportId)         sessionStorage.setItem(SESSION_KEY_REPORT,   reportId);
+  }, [reportId]);
+
+  useEffect(() => {
+    if (selectedDisaster) sessionStorage.setItem(SESSION_KEY_DISASTER, selectedDisaster);
+  }, [selectedDisaster]);
+
+  useEffect(() => {
+    if (currentStep > 1)  sessionStorage.setItem(SESSION_KEY_STEP, String(currentStep));
+  }, [currentStep]);
+
+  // ── Restore workflow state from backend on mount ───────────────────────
+  // This runs once. If a reportId exists in sessionStorage we call /status
+  // and rebuild analysisData + evidenceResult from Firestore — no re-upload needed.
+  useEffect(() => {
+    const savedId       = sessionStorage.getItem(SESSION_KEY_REPORT);
+    const savedDisaster = sessionStorage.getItem(SESSION_KEY_DISASTER);
+    const savedStep     = parseInt(sessionStorage.getItem(SESSION_KEY_STEP) || "1", 10);
+
+    if (!savedId) return; // fresh session — nothing to restore
+
+    async function restoreWorkflow() {
+      try {
+        const status = await getReportStatus(savedId);
+        if (!status?.success) return;
+
+        // Restore base identifiers
+        setReportId(savedId);
+        if (savedDisaster) setSelectedDisaster(savedDisaster);
+
+        // Restore analysis if it was already completed
+        if (status.analysis?.damage_percent != null) {
+          setAnalysisData(status.analysis);
+        }
+
+        // Rebuild evidenceResult summary from persisted validations (no files — metadata only)
+        const validations = status.evidence_validations || [];
+        const accepted = validations.filter((v) => v.valid && v.relevant);
+        if (accepted.length > 0) {
+          const merged = accepted.reduce(
+            (acc, v) => ({
+              ...acc,
+              detected_objects: [...new Set([...acc.detected_objects, ...(v.detected_objects || [])])],
+              evidence:         [...new Set([...acc.evidence,         ...(v.evidence         || [])])],
+              possible_damage:  [...new Set([...acc.possible_damage,  ...(v.possible_damage  || [])])],
+              confidence:       Math.max(acc.confidence, v.confidence || 0),
+              file_type:        acc.file_type || v.file_type || "unknown",
+              summary:          acc.summary   || v.summary   || "",
+              disaster:         savedDisaster || "flood",
+            }),
+            { detected_objects: [], evidence: [], possible_damage: [], confidence: 0, file_type: "", summary: "", disaster: savedDisaster }
+          );
+          setEvidenceResult(merged);
+
+          // Reconstruct uploadedFiles display list from metadata (no originalFile — cannot re-upload)
+          const restoredFiles = validations.map((v) => ({
+            id:               v.filename + "_restored",
+            name:             v.filename || "Evidence file",
+            originalFile:     null,  // File object not available after reload
+            size:             "Stored",
+            type:             v.file_type === "image" ? "image/jpeg" : (v.file_type === "pdf" ? "application/pdf" : ""),
+            category:         "Restored",
+            preview:          null,
+            isImg:            v.file_type === "image",
+            isVid:            v.file_type === "video",
+            validationStatus: v.valid && v.relevant ? "accepted" : "rejected",
+            validationResult: {
+              valid:            v.valid,
+              relevant:         v.relevant,
+              confidence:       v.confidence,
+              file_type:        v.file_type,
+              detected_objects: v.detected_objects,
+              evidence:         v.evidence,
+              possible_damage:  v.possible_damage,
+              summary:          v.summary,
+              reject_reason:    v.reject_reason,
+              restored:         true,  // flag so UI knows this is a restored entry
+            },
+          }));
+          setUploadedFiles(restoredFiles);
+        }
+
+        // Restore step — but cap at the last confirmed completed step from backend
+        const backendStep  = status.completed_step || 1;
+        const targetStep   = Math.max(1, Math.min(savedStep, backendStep + 1));
+        setCurrentStep(targetStep);
+      } catch (err) {
+        // Restoration failed (e.g. backend down) — start fresh, don't crash
+        console.warn("[DisasterRelief] Could not restore workflow:", err?.message);
+      }
+    }
+
+    restoreWorkflow();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Disable background scrolling while drawer is open
+  useEffect(() => {
+    if (mobileSidebarOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileSidebarOpen]);
+
+  // Close drawer on Escape key press
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && mobileSidebarOpen) {
+        setMobileSidebarOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mobileSidebarOpen]);
 
   const userEmail =
     user?.email ||
@@ -105,17 +247,35 @@ export default function DisasterRelief() {
     "Citizen";
 
   const handleSubmitApplication = async () => {
+    if (!userEmail || !userEmail.includes("@")) {
+      setToast({
+        type: "warning",
+        msg: "Email address not available. Please update your profile."
+      });
+      setTimeout(() => setToast(null), 6000);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const activeOff = officerData || getAssignedOfficer(reportId);
+      const schemeId = selectedSchemeState?.id || selectedSchemeState?.scheme_id || firstScheme?.id || firstScheme?.scheme_id;
+      const isEligible = eligibilityData[schemeId]?.is_eligible !== false;
+      const eligStatus = isEligible ? "Verified Eligible" : "Pending Verification";
+
       const selScheme =
+        selectedSchemeState?.official_name ||
+        selectedSchemeState?.schemeName ||
+        selectedSchemeState?.name ||
         eligibilityData?.scheme_name ||
         governmentSchemes?.[0]?.schemeName ||
         governmentSchemes?.[0]?.name ||
         "National Disaster Relief Fund";
-      const relAmt = governmentSchemes?.[0]?.reliefAmount || "Not Available";
-      const inspDate = activeOff?.inspectionDate || getDynamicInspectionDate();
-      const offName = activeOff?.name || "Not Assigned";
+      const relAmt =
+        selectedSchemeState?.reliefAmount ||
+        selectedSchemeState?.relief_amount ||
+        selectedSchemeState?.benefit ||
+        governmentSchemes?.[0]?.reliefAmount ||
+        "Not Available";
       
       const subDate = new Date().toLocaleDateString("en-GB");
       const subTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -127,21 +287,41 @@ export default function DisasterRelief() {
         disaster_type: selectedDisaster || "Disaster Relief Claim",
         scheme_name: selScheme,
         relief_amount: relAmt,
-        inspection_date: inspDate,
-        officer_name: offName,
         submission_date: subDate,
         submission_time: subTime,
+        eligibility_status: eligStatus,
+        application_status: "Submitted & AI Verified",
+        next_step: "Be present at your property for physical inspection by the assigned officer.",
+        applied_scheme_ids: appliedSchemes.map((s) => s.id || s.scheme_id).filter(Boolean),
       });
 
+      // Update officerData with actual assigned officer from backend
+      if (response?.success && response?.data) {
+        const rdata = response.data;
+        if (rdata.officer_name) {
+          setOfficerData({
+            name: rdata.officer_name,
+            role: rdata.officer_role || "District Emergency Coordinator",
+            designation: rdata.officer_role || "District Emergency Coordinator",
+            department: rdata.officer_department || "Department of Civil Defense & Relief",
+            phone: rdata.officer_phone || "+91 90000 90123",
+            inspectionDate: rdata.inspection_date,
+            inspectionTime: rdata.inspection_time,
+            note: rdata.officer_note || "",
+            remarks: rdata.officer_note || "",
+          });
+        }
+      }
+
       // Step 4: Capture real email delivery response from backend
-      const isEmailDelivered = response?.email_sent !== false;
+      const isEmailDelivered = response?.email_sent === true;
       setEmailNotice({
         emailSent: isEmailDelivered,
         email: userEmail,
         message: response?.message || (
           isEmailDelivered
             ? `✅ Application Submitted Successfully\n\nA confirmation email has been sent to your registered email address.`
-            : `Application submitted successfully, but the confirmation email could not be sent.`
+            : `Application submitted successfully, but the confirmation email could not be sent. Please verify your email address.`
         ),
       });
 
@@ -154,13 +334,14 @@ export default function DisasterRelief() {
       } else {
         setToast({
           type: "warning",
-          msg: "Application submitted successfully, but the confirmation email could not be sent."
+          msg: "Application submitted successfully, but confirmation email could not be sent. Please verify your email address."
         });
       }
       setTimeout(() => setToast(null), 6000);
 
       // Step 5: Navigate to Success Screen (Do NOT download PDF automatically)
       setIsSubmitted(true);
+      clearWorkflowSession();
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       console.error("Submission failed:", err);
@@ -170,24 +351,6 @@ export default function DisasterRelief() {
     }
   };
 
-  useEffect(() => {
-  async function testConnection() {
-    try {
-      const data = await checkBackend();
-      console.log("✅ Backend Connected");
-      console.log(data);
-    } catch (error) {
-      console.error("❌ Backend Error");
-      console.error(error);
-    }
-  }
-
-  testConnection();
-}, []);
-
-useEffect(() => {
-  console.log("Current Step:", currentStep);
-}, [currentStep]);
 
   const goNext = useCallback(() => {
     setCurrentStep((s) => Math.min(s + 1, STEP_LABELS.length));
@@ -206,7 +369,30 @@ useEffect(() => {
     console.log("Eligibility Result");
     console.log(result);
 
-    setEligibilityData(result.eligibility);
+    // Map global eligibility result per scheme ID
+    const newEligibilityMap = {};
+    appliedSchemes.forEach(sch => {
+      newEligibilityMap[sch.id] = result.eligibility || {};
+    });
+    setEligibilityData(newEligibilityMap);
+
+    // Fetch RAG eligibility in background — non-blocking
+    setRagLoading(prev => ({ ...prev, eligibility: true }));
+    getRAGEligibility(
+      selectedDisaster,
+      analysisData?.damage_percent || 50,
+      analysisData?.severity || "Moderate",
+      appliedSchemes
+    ).then(ragData => {
+      const newRagMap = {};
+      appliedSchemes.forEach(sch => {
+        newRagMap[sch.id] = ragData;
+      });
+      setRagEligibility(newRagMap);
+      setRagLoading(prev => ({ ...prev, eligibility: false }));
+    }).catch(() => {
+      setRagLoading(prev => ({ ...prev, eligibility: false }));
+    });
 
     goNext();
   } catch (error) {
@@ -226,6 +412,20 @@ const handleDocuments = async () => {
     console.log(result);
 
     setDocuments(result.documents);
+
+    // Fetch RAG documents in background — non-blocking
+    setRagLoading(prev => ({ ...prev, documents: true }));
+    getRAGDocuments(
+      selectedDisaster,
+      analysisData?.damage_percent || 50,
+      analysisData?.severity || "Moderate",
+      appliedSchemes
+    ).then(ragData => {
+      setRagDocuments(ragData);
+      setRagLoading(prev => ({ ...prev, documents: false }));
+    }).catch(() => {
+      setRagLoading(prev => ({ ...prev, documents: false }));
+    });
 
     goNext();
 
@@ -255,10 +455,23 @@ const handleDocuments = async () => {
       console.log("Timeline");
       console.log(result);
 
-      const officer = result.officer || getAssignedOfficer(reportId);
+      const officer = result.officer || null;
 
       setTimelineData(result.timeline);
       setOfficerData(officer);
+
+      // Fetch RAG timeline in background — non-blocking
+      setRagLoading(prev => ({ ...prev, timeline: true }));
+      getRAGTimeline(
+        selectedDisaster,
+        analysisData?.damage_percent || 50,
+        analysisData?.severity || "Moderate"
+      ).then(ragData => {
+        setRagTimeline(ragData);
+        setRagLoading(prev => ({ ...prev, timeline: false }));
+      }).catch(() => {
+        setRagLoading(prev => ({ ...prev, timeline: false }));
+      });
 
       goNext();
     } catch (error) {
@@ -290,44 +503,78 @@ const handleNearbyHelp = async () => {
 };
 
 const handleGovernmentSchemes = async () => {
-  console.log("FUNCTION CALLED");
-
   try {
+    // Allow proceeding even without damage_percent if user is on restored session
+    const damagePercent = analysisData?.damage_percent ?? 50;
+    const severity      = analysisData?.severity       ?? "Moderate";
 
-    console.log("Selected Disaster:", selectedDisaster);
-    console.log("Analysis:", analysisData);
-    console.log("damage =", analysisData?.damage_percent);
-
-    if (!analysisData || analysisData.damage_percent == null) {
-    console.log("Analysis data missing");
-    return;
-}
-
-    const result = await getSchemes(
-    selectedDisaster,
-    analysisData.damage_percent,
-    "Punjab"
-);
-
-    console.log("API RESULT");
-    console.log(result);
-
-    console.log("Full Result:", JSON.stringify(result, null, 2));
-
-    flushSync(() => {
-    setGovernmentSchemes(result);
-    if (result && result.length > 0) {
-      setSelectedSchemeState(result[0]);
+    if (!selectedDisaster) {
+      console.warn("[DisasterRelief] No disaster type — cannot proceed to Step 5.");
+      return;
     }
-});
 
-goNext();
+    // Start RAG loading state immediately
+    setRagLoading(prev => ({ ...prev, schemes: true }));
 
-  } catch(err) {
-    console.log("ERROR");
-    console.log(err);
+    // Navigate to Step 5 immediately — RAG data arrives in background
+    goNext();
+
+    // Fire legacy API (non-blocking, 5s timeout) — don't await
+    getSchemes(selectedDisaster, damagePercent, null)
+      .then(legacyResult => {
+        if (legacyResult && legacyResult.length > 0) {
+          setGovernmentSchemes(legacyResult);
+        }
+      })
+      .catch(() => {});
+
+    // Primary: RAG is authoritative source for Step 5 schemes
+    getRAGSchemes(selectedDisaster, damagePercent, severity)
+      .then(ragData => {
+        setRagSchemes(ragData);
+        setRagLoading(prev => ({ ...prev, schemes: false }));
+        // Auto-select the first verified scheme as the default for Step 6
+        if (ragData?.rag_available && ragData.data) {
+          const d = ragData.data;
+          const schemesArr = Array.isArray(d) ? d : (Array.isArray(d.schemes) ? d.schemes : []);
+          if (schemesArr.length > 0) {
+            setAppliedSchemes(prev => {
+              if (prev.length > 0) return prev; // preserve existing selection
+              const first = schemesArr[0];
+              return [{
+                scheme_id: first.scheme_id || first.id || "rag-0",
+                id: first.id || first.scheme_id || "rag-0",
+                official_name: first.name || first.official_name || first.scheme_name || "",
+                name: first.name || first.official_name || first.scheme_name || "",
+                schemeName: first.name || first.official_name || first.scheme_name || "",
+                disasterType: first.applicable_disaster || first.disaster_type || selectedDisaster || "",
+                eligibility: first.eligibility_summary || "",
+                benefit: first.benefit_amount || first.relief_amount || "",
+                reliefAmount: first.relief_amount || first.benefit_amount || "",
+                required_documents: first.required_documents || [],
+                requiredDocuments: first.required_documents || [],
+                benefits: first.benefits || [],
+                authority: first.source_authority || first.authority || "",
+                department: first.source_authority || first.authority || "",
+                official_source_url: first.official_source_url || first.source_url || "",
+                source_url: first.official_source_url || first.source_url || "",
+                document_name: first.document_name || "",
+              verified: first.verified !== false,
+              source_authority: first.source_authority || first.authority || "",
+            }];
+          });
+        }
+      }
+    }).catch((err) => {
+      console.warn("[DisasterRAG] RAG schemes fetch failed:", err?.message);
+      setRagLoading(prev => ({ ...prev, schemes: false }));
+    });
+
+  } catch (err) {
+    console.error("[DisasterRelief] handleGovernmentSchemes error:", err);
   }
 }
+
 
 
   const jumpTo = (step) => {
@@ -336,39 +583,107 @@ goNext();
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
+  // ── AI service status (shown in Step 2 header) ────────────────────────
+  const [aiStatus, setAiStatus] = useState("unknown"); // "online"|"warming_up"|"offline"|"unknown"
+
+  useEffect(() => {
+    checkBackend()
+      .then((data) => setAiStatus(data?.ai_status || (data?.status === "healthy" ? "warming_up" : "offline")))
+      .catch(() => setAiStatus("offline"));
+  }, []);
+
+  // ── Clear session when user explicitly starts a new report ─────────────
+  const clearWorkflowSession = () => {
+    sessionStorage.removeItem(SESSION_KEY_REPORT);
+    sessionStorage.removeItem(SESSION_KEY_DISASTER);
+    sessionStorage.removeItem(SESSION_KEY_STEP);
+  };
+  const creatingReportRef = useRef(false);
+
   const handleCreateReport = async () => {
-  try {
     if (!selectedDisaster) {
       alert("Please select a disaster type.");
       return;
     }
+    // Idempotency: if a reportId already exists this session, just advance
+    if (reportId) {
+      goNext();
+      return;
+    }
+    // Prevent concurrent creation (StrictMode / double-click)
+    if (creatingReportRef.current) return;
+    creatingReportRef.current = true;
 
-    const response = await createReport({
-      disaster_type: selectedDisaster,
-      location: "Location will come later",
-      description: "Created from Step 1",
-    });
+    try {
+      const response = await createReport({
+        disaster_type: selectedDisaster,
+        location: "Location will come later",
+        description: "Created from Step 1",
+      });
 
-    console.log("FULL RESPONSE");
-    console.log(JSON.stringify(response, null, 2));
+      setReportId(response.report_id);
+      goNext();
+    } catch (error) {
+      console.error(error);
+      alert("Failed to create report.");
+    } finally {
+      creatingReportRef.current = false;
+    }
+  };
 
-    console.log("Response from backend:", response);
-    console.log("Report ID:", response.report_id);
-    setReportId(response.report_id);
-
-
-    goNext();
-  } catch (error) {
-    console.error(error);
-    alert("Failed to create report.");
-  }
-};
-
-console.log("Government Schemes State:", governmentSchemes);
 
 const firstScheme = governmentSchemes?.[0];
 
-const reliefAmount = firstScheme?.reliefAmount || "Not Available";
+// Derive list of actually applicable schemes based on Step 6 evaluation
+const uniqueApplicableSchemes = Array.from(
+  new Map(
+    appliedSchemes
+      .filter((scheme) => {
+        const schemeId = scheme.id || scheme.scheme_id;
+        const local = eligibilityData[schemeId] || {};
+        const rag = ragEligibility[schemeId] || {};
+
+        const dmg =
+          typeof analysisData?.damage_percent === "number"
+            ? analysisData.damage_percent
+            : parseInt(analysisData?.damage_percent || "0", 10);
+        const minDmg =
+          typeof scheme?.minDamage === "number"
+            ? scheme.minDamage
+            : typeof scheme?.min_damage === "number"
+            ? scheme.min_damage
+            : 0;
+        if (dmg > 0 && minDmg > 0 && dmg < minDmg) {
+          return false;
+        }
+
+        const localStatus = (local.status || "").toLowerCase();
+        if (localStatus.includes("not") && localStatus.includes("eligible")) return false;
+        if (localStatus.includes("reject")) return false;
+        if (local.is_eligible === false) return false;
+
+        const ragResult = rag.data || {};
+        const ragStatus = (ragResult.status || "").toLowerCase();
+        if (ragStatus.includes("not") && ragStatus.includes("eligible")) return false;
+        if (ragStatus.includes("reject")) return false;
+        if (ragResult.is_eligible === false) return false;
+
+        return true;
+      })
+      .map((s) => [s.id || s.scheme_id, s])
+  ).values()
+);
+
+// Derive a single "primary" scheme alias from the first APPLICABLE scheme
+// — used by Step 9 summary, PDF download, and submit handler (single-scheme compat)
+const selectedSchemeState = uniqueApplicableSchemes[0] || null;
+
+const reliefAmount =
+  selectedSchemeState?.reliefAmount ||
+  selectedSchemeState?.relief_amount ||
+  selectedSchemeState?.benefit ||
+  firstScheme?.reliefAmount ||
+  "Not Available";
 
 const matchedSchemes = governmentSchemes?.length || 0;
 
@@ -378,15 +693,16 @@ const severity = analysisData?.severity || "--";
 
 const damagePercent = analysisData?.damage_percent || "--";
 
-const activeOfficer = officerData || getAssignedOfficer(reportId);
-
-const inspectionDate = activeOfficer.inspectionDate;
-const officerName = activeOfficer.name;
-const inspectionTime = activeOfficer.inspectionTime;
-const officerNote = activeOfficer.note || activeOfficer.remarks;
+const activeOfficer = officerData || null;
+const officerName = activeOfficer?.name || "Officer not assigned yet";
+const inspectionDate = activeOfficer?.inspectionDate || "Inspection not scheduled yet";
+const inspectionTime = activeOfficer?.inspectionTime || "";
+const officerNote = activeOfficer?.note || activeOfficer?.remarks || "";
 
 const selectedScheme =
-  eligibilityData?.scheme_name ||
+  selectedSchemeState?.official_name ||
+  selectedSchemeState?.schemeName ||
+  selectedSchemeState?.name ||
   firstScheme?.schemeName ||
   firstScheme?.name ||
   "National Disaster Relief Fund";
@@ -423,13 +739,15 @@ const selectedScheme =
       {/* ── Navbar ─────────────────────────────────────────────── */}
       <nav className="fixed top-0 left-0 right-0 z-40 bg-[#0B0B12]/90 backdrop-blur-md border-b border-[rgba(255,255,255,0.06)]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+
+          {/* Logo — always left */}
           <Link to="/" className="flex items-center gap-2.5 shrink-0">
             <Building2 className="w-5 h-5 text-[#F4C95D]" />
             <span className="text-sm font-bold tracking-tight">CivicSync</span>
           </Link>
 
-          {/* Step label pill */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-[rgba(255,255,255,0.08)] bg-[#11131A]">
+          {/* Step label pill — desktop only */}
+          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full border border-[rgba(255,255,255,0.08)] bg-[#11131A]">
             <span className="text-[9px] text-[#A5A8B5] font-bold uppercase tracking-wider">
               Step {currentStep} of {STEP_LABELS.length}
             </span>
@@ -438,11 +756,13 @@ const selectedScheme =
             </span>
           </div>
 
+          {/* Right side controls */}
           <div className="flex items-center gap-2">
+            {/* Back + Exit — desktop only */}
             {currentStep > 1 && (
               <button
                 onClick={goPrev}
-                className="px-3 py-1.5 rounded-[10px] border border-[rgba(255,255,255,0.08)] bg-[#11131A] hover:bg-[#171923] text-xs font-bold text-[#A5A8B5] transition-all flex items-center gap-1"
+                className="hidden lg:flex items-center gap-1 px-3 py-1.5 rounded-[10px] border border-[rgba(255,255,255,0.08)] bg-[#11131A] hover:bg-[#171923] text-xs font-bold text-[#A5A8B5] transition-all"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
                 Back
@@ -450,7 +770,48 @@ const selectedScheme =
             )}
             <Link
               to="/"
-              className="px-3 py-1.5 rounded-[10px] text-xs font-bold text-[#A5A8B5] hover:text-white transition-colors"
+              className="hidden lg:block px-3 py-1.5 rounded-[10px] text-xs font-bold text-[#A5A8B5] hover:text-white transition-colors"
+            >
+              Exit
+            </Link>
+
+            {/* Hamburger — mobile/tablet only */}
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              className="lg:hidden p-2 rounded-lg text-[#A5A8B5] hover:text-white hover:bg-white/5 transition-colors focus:outline-none focus:ring-2 focus:ring-[#F4C95D]"
+              aria-label="Open navigation menu"
+              aria-expanded={mobileSidebarOpen}
+              aria-controls="disaster-relief-sidebar-drawer"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+
+        {/* ── Mobile sub-header: step info + back/exit ── */}
+        <div className="lg:hidden border-t border-[rgba(255,255,255,0.06)] bg-[#0B0B12]/95 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] text-[#A5A8B5] font-bold uppercase tracking-wider">
+              Step {currentStep} of {STEP_LABELS.length}
+            </span>
+            <span className="text-[9px] text-[rgba(255,255,255,0.2)]">·</span>
+            <span className="text-[9px] font-bold text-[#F4C95D]">
+              {STEP_LABELS[currentStep - 1]}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            {currentStep > 1 && (
+              <button
+                onClick={goPrev}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-[8px] border border-[rgba(255,255,255,0.08)] bg-[#11131A] hover:bg-[#171923] text-[10px] font-bold text-[#A5A8B5] transition-all"
+              >
+                <ChevronLeft className="w-3 h-3" />
+                Back
+              </button>
+            )}
+            <Link
+              to="/"
+              className="px-2.5 py-1 rounded-[8px] text-[10px] font-bold text-[#A5A8B5] hover:text-white transition-colors"
             >
               Exit
             </Link>
@@ -458,8 +819,65 @@ const selectedScheme =
         </div>
       </nav>
 
+      {/* ── Mobile/Tablet Sidebar Drawer ────────────────────────── */}
+      <AnimatePresence>
+        {mobileSidebarOpen && (
+          <>
+            {/* Semi-transparent backdrop — above all page content */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              style={{ zIndex: 9998 }}
+              className="fixed inset-0 bg-black/70 lg:hidden"
+              onClick={() => setMobileSidebarOpen(false)}
+              aria-hidden="true"
+            />
+
+            {/* Slide-in Sidebar Drawer — highest z-index, always above page */}
+            <motion.div
+              id="disaster-relief-sidebar-drawer"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Navigation Menu"
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", bounce: 0, duration: 0.35 }}
+              style={{ zIndex: 9999 }}
+              className="fixed inset-y-0 left-0 w-64 bg-[#0d0f14] shadow-2xl border-r border-[rgba(255,255,255,0.08)] lg:hidden flex flex-col"
+            >
+              {/* Drawer header with close button */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-[rgba(255,255,255,0.08)] bg-[#0d0f14] shrink-0">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-[#F4C95D]">
+                  Navigation
+                </span>
+                <button
+                  onClick={() => setMobileSidebarOpen(false)}
+                  className="p-1.5 rounded-lg text-[#A5A8B5] hover:text-white hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-[#F4C95D]"
+                  aria-label="Close navigation menu"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Reused Sidebar content — isDrawerOnly avoids re-rendering the top bar */}
+              <div className="flex-1 overflow-y-auto">
+                <Sidebar
+                  mobileOpen={true}
+                  setMobileOpen={setMobileSidebarOpen}
+                  isDrawerOnly={true}
+                />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* ── Main Content ────────────────────────────────────────── */}
-      <main className="pt-28 pb-24 px-4 sm:px-6 max-w-6xl mx-auto space-y-8">
+      {/* Mobile: navbar 64px + sub-header ~44px = ~108px → pt-[6.75rem]; desktop: pt-28 */}
+      <main className="pt-[6.75rem] lg:pt-28 pb-24 px-4 sm:px-6 max-w-6xl mx-auto space-y-8">
 
         {/* Stepper */}
         <div className="bg-[#11131A] border border-[rgba(255,255,255,0.08)] rounded-[20px] px-6 py-4">
@@ -509,38 +927,62 @@ const selectedScheme =
             {currentStep === 2 && (
               <Step2UploadCenter
                 reportId={reportId}
-                onNext={goNext}
-                onFilesChange={setUploadedFiles}
+                disasterType={selectedDisaster}
+                uploadedFiles={uploadedFiles}
+                setUploadedFiles={setUploadedFiles}
+                aiStatus={aiStatus}
+                onNext={(evResult) => {
+                  setEvidenceResult(evResult);
+                  goNext();
+                }}
               />
             )}
             {currentStep === 3 && (
               <Step3AIAnalysis
-    reportId={reportId}
-    selectedDisaster={selectedDisaster}
-    setAnalysisData={setAnalysisData}
-    onComplete={goNext}
-/>
+                reportId={reportId}
+                selectedDisaster={selectedDisaster}
+                evidenceResult={evidenceResult}
+                setAnalysisData={setAnalysisData}
+                onComplete={goNext}
+              />
             )}
             {currentStep === 4 && (
               <Step4DamageReport
-    data={analysisData}
-    images={[]}
-    onNext={handleGovernmentSchemes}
-/>
+                data={analysisData}
+                disasterType={selectedDisaster}
+                images={[]}
+                onNext={handleGovernmentSchemes}
+              />
             )}
             {currentStep === 5 && (
               <Step5GovernmentSchemes
                 schemes={governmentSchemes}
                 onNext={handleEligibility}
-                onSelectScheme={(sch) => setSelectedSchemeState(sch)}
+                onSelectScheme={(sch) => {
+                  setAppliedSchemes((prev) => {
+                    const id = sch.id || sch.scheme_id;
+                    const already = prev.some((s) => (s.id || s.scheme_id) === id);
+                    if (already) return prev.filter((s) => (s.id || s.scheme_id) !== id);
+                    return [...prev, sch];
+                  });
+                }}
+                appliedSchemes={appliedSchemes}
+                selectedScheme={selectedSchemeState}
+                ragData={ragSchemes}
+                ragLoading={ragLoading.schemes}
+                disasterType={selectedDisaster}
               />
             )}
             {currentStep === 6 && (
               <Step6Eligibility
                 eligibility={eligibilityData}
                 analysis={analysisData}
+                appliedSchemes={appliedSchemes}
                 matchedScheme={selectedSchemeState || firstScheme}
                 onNext={handleDocuments}
+                onBack={() => setCurrentStep(5)}
+                ragData={ragEligibility}
+                ragLoading={ragLoading.eligibility}
               />
             )}
 
@@ -548,17 +990,26 @@ const selectedScheme =
               <Step7Documents
                 documents={documents}
                 disasterType={selectedDisaster}
+                applicableSchemes={uniqueApplicableSchemes}
                 scheme={selectedSchemeState || firstScheme}
                 schemeName={selectedScheme}
                 onNext={handleTimeline}
+                onDocumentsUpdate={setDocSummary}
+                ragData={ragDocuments}
+                ragLoading={ragLoading.documents}
               />
             )}
             {currentStep === 8 && (
               <Step8ClaimTimeline
                 timeline={timelineData}
-                officer={officerData}
+                officer={activeOfficer}
                 reportId={reportId}
+                selectedScheme={selectedScheme}
+                selectedDisaster={selectedDisaster}
+                docList={docSummary}
                 onNext={handleNearbyHelp}
+                ragData={ragTimeline}
+                ragLoading={ragLoading.timeline}
               />
             )}
             {currentStep === 9 && (
@@ -948,7 +1399,15 @@ const selectedScheme =
                           scheme: firstScheme || {},
                           eligibility: eligibilityData || {},
                           documents: documents || [],
-                          officer: activeOfficer || {},
+                          officer: officerData || {
+                            name: "Not assigned yet",
+                            role: "Not assigned yet",
+                            designation: "Not assigned yet",
+                            department: "",
+                            phone: "",
+                            inspectionDate: "Not scheduled yet",
+                            inspectionTime: ""
+                          },
                           timeline: timelineData || [],
                           nearbyHelp: nearbyHelpData || [],
                         });
@@ -966,7 +1425,7 @@ const selectedScheme =
       </main>
 
       {/* Floating AI Chat */}
-      {/* <FloatingAIChat /> */}
+      <FloatingAIChat />
     </div>
   );
 }

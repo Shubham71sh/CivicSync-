@@ -15,7 +15,7 @@ class FakeNewsController:
             )
             
         try:
-            result = verify_claim_with_ai(text, url)
+            result = await verify_claim_with_ai(text, url)
             return result
         except Exception as e:
             raise HTTPException(

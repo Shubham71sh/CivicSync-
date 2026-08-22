@@ -51,8 +51,8 @@ class CompareController:
             if len(bills_list) == 1:
                 bills_list.append(bills_list[0])
 
-            # Call AI Comparison Service
-            comparison_results = compare_bills_with_ai(bills_list)
+            # Call AI Comparison Service (async-def)
+            comparison_results = await compare_bills_with_ai(bills_list)
             
             return {
                 "comparison": {
