@@ -33,6 +33,9 @@ backend/app/__pycache__/
 # Uploaded files
 backend/uploads/
 
+# Vector DB data (FAISS index + ChromaDB)
+backend/data/
+
 # Text files (optional)
 backend_structure.txt
 structure.txt

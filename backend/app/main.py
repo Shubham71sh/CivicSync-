@@ -6,8 +6,14 @@ if _backend_dir not in sys.path:
     sys.path.insert(0, _backend_dir)
 
 from contextlib import asynccontextmanager
+import asyncio
 from typing import Any, Dict
 import logging
+
+# ── RAG / Open-Source AI Stack ────────────────────────────────────────────────
+from app.ai.retrieval.faiss_client import get_faiss_service
+from app.ai.embeddings.bge_m3 import get_embedding_service
+from app.ai.orchestrator import orchestrator
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -99,6 +105,20 @@ async def lifespan(app: FastAPI):
         warmup_thread = threading.Thread(target=_warmup_rag, daemon=True, name="rag-warmup")
         warmup_thread.start()
         logger.info("[Lifespan] RAG warmup launched in background thread. Server is ready.")
+
+        # Initialize FAISS and warming embeddings model
+        logger.info("Checking Vector Database & Embeddings Model...")
+        faiss_svc = get_faiss_service()
+        if faiss_svc.is_available():
+            faiss_svc.ensure_collection()
+            logger.info("FAISS index checks complete.")
+        else:
+            logger.warning("FAISS is not running/available. App starting in fallback mode.")
+
+        # Trigger lazy warming of embedding model in background
+        loop = asyncio.get_running_loop()
+        loop.run_in_executor(None, get_embedding_service().is_available)
+        logger.info("Warming embedding model MiniLM in background...")
 
     except Exception as e:
         logger.critical(f"Startup error: {e}", exc_info=True)
@@ -260,4 +280,35 @@ def health():
         "rag_model_loaded":    rag_model_loaded,
         "faiss_index_loaded":  faiss_index_loaded,
         "gemini_configured":   gemini_key_set,
+    }
+
+
+@app.get("/api/health/ai")
+def health_ai():
+    """
+    Detailed health check of the active local RAG and open-source AI integrations.
+    """
+    faiss_svc = get_faiss_service()
+    embed_svc = get_embedding_service()
+    status_ai = orchestrator.status()
+    
+    faiss_status = "connected" if faiss_svc.is_available() else "disconnected"
+    embedding_status = "loaded" if embed_svc.is_available() else "failed"
+    ollama_status = "connected" if status_ai.get("primary", {}).get("available") else "disconnected"
+    
+    # RAG state determination
+    rag_ready = "ready"
+    if faiss_status != "connected" or embedding_status != "loaded":
+        rag_ready = "partially_ready"
+    if faiss_status == "disconnected" and embedding_status == "failed":
+        rag_ready = "unavailable"
+
+    return {
+        "faiss": faiss_status,
+        "embedding_model": embedding_status,
+        "ollama": ollama_status,
+        "llm_model": status_ai.get("primary", {}).get("model", "unknown"),
+        "rag": rag_ready,
+        "fallback_provider": status_ai.get("fallback", {}).get("name", "none"),
+        "fallback_status": "connected" if status_ai.get("fallback", {}).get("available") else "disconnected"
     }
