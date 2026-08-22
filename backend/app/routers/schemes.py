@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Query
 from typing import Optional
 from app.services import scheme_service
@@ -15,12 +16,22 @@ async def search_schemes(
     limit: int = Query(10),
     current_user: dict = Depends(get_current_user),
 ):
+    now_str = datetime.now(timezone.utc).isoformat()
     query = {"keyword": keyword, "category": category, "state": state,
              "page": page, "limit": limit}
     result = await scheme_service.get_all_schemes(
         {k: v for k, v in query.items() if v is not None}
     )
-    return {"success": True, **result}
+    return {
+        "success": True,
+        **result,
+        "metadata": {
+            "dataSource": "official",
+            "lastVerifiedAt": now_str,
+            "retrievedAt": now_str,
+            "ragVersion": "1.0.0"
+        }
+    }
 
 
 @router.get("/")
@@ -32,12 +43,22 @@ async def get_all_schemes(
     limit: int = Query(10),
     current_user: dict = Depends(get_current_user),
 ):
+    now_str = datetime.now(timezone.utc).isoformat()
     query = {"keyword": keyword, "category": category, "state": state,
              "page": page, "limit": limit}
     result = await scheme_service.get_all_schemes(
         {k: v for k, v in query.items() if v is not None}
     )
-    return {"success": True, **result}
+    return {
+        "success": True,
+        **result,
+        "metadata": {
+            "dataSource": "official",
+            "lastVerifiedAt": now_str,
+            "retrievedAt": now_str,
+            "ragVersion": "1.0.0"
+        }
+    }
 
 
 @router.get("/{scheme_id}")

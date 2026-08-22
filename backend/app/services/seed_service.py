@@ -45,16 +45,14 @@ SCHEMES = [
 
 
 async def seed_schemes() -> int:
-    loop = asyncio.get_event_loop()
-
-    def _check_and_seed():
-        schemes_col = get_col("schemes")
-        existing = list(schemes_col.limit(1).stream())
-        if existing:
-            return 0
-        for scheme in SCHEMES:
-            schemes_col.add(scheme)
-        return len(SCHEMES)
-
-    count = await loop.run_in_executor(None, _check_and_seed)
-    return count
+    """
+    Seeds/Synchronizes official government schemes into Firestore and ChromaDB RAG collection.
+    """
+    from app.services.live_data_sync import sync_live_schemes
+    try:
+        summary = await sync_live_schemes(force_reindex=False)
+        logger.info(f"Scheme live sync & seeding complete: {summary}")
+        return summary.get("updatedInFirestore", 0) + summary.get("reindexedInRAG", 0)
+    except Exception as exc:
+        logger.error(f"Error seeding schemes via live sync: {exc}")
+        return 0

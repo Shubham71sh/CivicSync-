@@ -139,27 +139,21 @@ async def check_eligibility(uid: str, scheme_id: str) -> dict:
     if not scheme_doc.exists:
         raise HTTPException(status_code=404, detail="Scheme not found.")
     scheme = scheme_doc.to_dict()
+    scheme["id"] = scheme_id
 
-    # Simple scoring
-    score = 60
-    reasons = []
-    eligibility_text = (scheme.get("eligibility") or "").lower()
+    from app.services.eligibility_engine import DeterministicEligibilityEngine
+    eval_result = DeterministicEligibilityEngine.evaluate(citizen, scheme)
 
-    if citizen.get("category") and citizen["category"].lower() in eligibility_text:
-        score += 10
-        reasons.append(f"Your category ({citizen['category']}) matches.")
-    if citizen.get("state") and citizen["state"].lower() in eligibility_text:
-        score += 10
-        reasons.append(f"Your state ({citizen['state']}) is eligible.")
-    if citizen.get("occupation") and citizen["occupation"].lower() in eligibility_text:
-        score += 10
-        reasons.append(f"Your occupation matches.")
+    reasons = [c["details"] for c in eval_result["checks"]]
 
     return {
-        "eligible": score >= 60,
-        "score": min(score, 100),
+        "eligible": eval_result["eligible"],
+        "status": eval_result["status"],
+        "score": eval_result["score"],
         "reasons": reasons,
-        "scheme": {**scheme, "id": scheme_id},
+        "checks": eval_result["checks"],
+        "scheme": scheme,
+        "lastVerifiedAt": scheme.get("lastVerifiedAt") or scheme.get("source", {}).get("lastVerifiedAt"),
     }
 
 

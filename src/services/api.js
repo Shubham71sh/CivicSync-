@@ -258,4 +258,50 @@ export const getSchemes = async () => {
   }
 };
 
+// RAG Scheme Finder Search
+export const ragSearchSchemes = async (queryData) => {
+  try {
+    const response = await API.post("/rag/schemes/search", queryData);
+    return response.data;
+  } catch (error) {
+    console.error("ragSearchSchemes error:", error);
+    throw error;
+  }
+};
+
+// RAG Eligibility Checker
+export const checkEligibilityRag = async (eligibilityData) => {
+  try {
+    const response = await API.post("/rag/eligibility/check", eligibilityData);
+    return response.data;
+  } catch (error) {
+    console.error("checkEligibilityRag error:", error);
+    throw error;
+  }
+};
+
+// RAG Benefits Status Explanation
+export const explainBenefitRag = async (benefitId) => {
+  try {
+    const response = await API.get(`/rag/benefits/${benefitId}/explain`);
+    return response.data;
+  } catch (error) {
+    console.error("explainBenefitRag error:", error);
+    throw error;
+  }
+};
+
+// Admin Manual Scheme Sync
+export const triggerAdminSync = async (forceReindex = false, adminKey = "civicsync_admin_secret_2026") => {
+  try {
+    const response = await API.post(`/admin/schemes/sync?force_reindex=${forceReindex}`, {}, {
+      headers: { "X-Admin-Key": adminKey }
+    });
+    return response.data;
+  } catch (error) {
+    console.error("triggerAdminSync error:", error);
+    throw error;
+  }
+};
+
 export default API;

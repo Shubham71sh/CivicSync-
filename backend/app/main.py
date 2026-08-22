@@ -18,7 +18,7 @@ from app.api.routes import bills, compare, fake_news, translation
 # ── Module 1 routers (Citizen Portal — Firebase) ─────────────────────────────
 from app.routers import (
     auth, citizen, schemes, benefits, notifications,
-    roadmap, chat, gps, dashboard, analytics
+    roadmap, chat, gps, dashboard, analytics, admin_sync, rag_schemes
 )
 
 # ── Module 2 routers (Disaster Relief Reports) ───────────────────────────────
@@ -106,6 +106,12 @@ app.include_router(chat.router, prefix="/api")
 app.include_router(gps.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
+app.include_router(admin_sync.router, prefix="/api")
+app.include_router(rag_schemes.router, prefix="/api")
+
+# Bare mounts for convenience
+app.include_router(rag_schemes.router)
+app.include_router(admin_sync.router)
 
 
 # ── Module 2 Routes (Disaster Relief) ────────────────────────────────────────
