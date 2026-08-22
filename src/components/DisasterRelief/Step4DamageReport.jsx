@@ -1,69 +1,180 @@
 import React, { useState } from "react";
-import { Sparkles, Eye, X, Landmark, CloudRain, Zap, DollarSign, Cpu, ChevronRight } from "lucide-react";
+import {
+  Sparkles, Eye, X, Landmark, CloudRain, Zap,
+  DollarSign, Cpu, ChevronRight, AlertCircle, Info,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const iconMap = {
-  House: Landmark,
-  Roof: Landmark,
-  Wall: Landmark,
-  Water: CloudRain,
-  Electricity: Zap,
-  Loss: DollarSign,
-  Confidence: Cpu
-};
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Safe percentage formatter.
+ * Returns "Not detected" if value is null / undefined / negative.
+ * Returns "N/A" only when explicitly forced.
+ * Never returns "NaN%" or "0%" from a missing field.
+ */
+function fmtPct(value) {
+  if (value === null || value === undefined || value < 0) return "Not detected";
+  if (typeof value === "string") {
+    const n = parseFloat(value);
+    if (Number.isNaN(n) || n < 0) return "Not detected";
+    return `${Math.round(n)}%`;
+  }
+  return `${Math.round(value)}%`;
+}
+
+/** Safe integer loss formatter — never shows ₹0 when value is missing. */
+function fmtLoss(value) {
+  if (value === null || value === undefined || value <= 0) return "Not assessed";
+  const n = typeof value === "string" ? parseFloat(value) : value;
+  if (Number.isNaN(n) || n <= 0) return "Not assessed";
+  return `₹${n.toLocaleString("en-IN")}`;
+}
+
+function severityColor(val) {
+  const n = typeof val === "number" ? val : parseFloat(val);
+  if (Number.isNaN(n) || n < 0) return "bg-[#A5A8B5]/10 text-[#A5A8B5]";
+  if (n >= 70) return "bg-[#EF4444]/10 text-[#EF4444]";
+  if (n >= 40) return "bg-[#F59E0B]/10 text-[#F59E0B]";
+  return "bg-[#22C55E]/10 text-[#22C55E]";
+}
+
+function severityLabel(val) {
+  const n = typeof val === "number" ? val : parseFloat(val);
+  if (Number.isNaN(n) || n < 0) return "Unknown";
+  if (n >= 70) return "Severe";
+  if (n >= 40) return "Moderate";
+  return "Low";
+}
+
+// ── Disaster-specific metric builders (using ONLY real data, no fabrication) ─
+
+function buildMetrics(disaster, d) {
+  const type = (disaster || "flood").toLowerCase().replace(/\s+/g, "_");
+
+  // We only show a metric if the backend actually returned a non-null value.
+  // Derived values like `Math.max(0, house - 15)` have been removed entirely.
+  const house   = d.house_damage;
+  const crop    = d.crop_damage;
+  const vehicle = d.vehicle_damage;
+
+  // If the backend returned a `metrics` array (new format), use it directly
+  if (Array.isArray(d.metrics) && d.metrics.length > 0) {
+    return d.metrics
+      .filter((m) => m.value !== null && m.value !== undefined && m.value >= 0)
+      .map((m) => ({
+        name:   m.label,
+        value:  m.value,
+        status: severityLabel(m.value),
+      }));
+  }
+
+  // Legacy fallback: build from scalar fields present in the response
+  const rows = [];
+  if (type.includes("earthquake")) {
+    if (house   !== null && house   !== undefined && house   >= 0) rows.push({ name: "Structural Damage",    value: house,   status: severityLabel(house)   });
+    if (vehicle !== null && vehicle !== undefined && vehicle >= 0) rows.push({ name: "Vehicle Damage",        value: vehicle, status: severityLabel(vehicle) });
+  } else if (type.includes("fire")) {
+    if (house   !== null && house   !== undefined && house   >= 0) rows.push({ name: "Structural Damage",    value: house,   status: severityLabel(house)   });
+    if (vehicle !== null && vehicle !== undefined && vehicle >= 0) rows.push({ name: "Vehicle Damage",        value: vehicle, status: severityLabel(vehicle) });
+  } else if (type.includes("cyclone")) {
+    if (house   !== null && house   !== undefined && house   >= 0) rows.push({ name: "Structural Damage",    value: house,   status: severityLabel(house)   });
+    if (crop    !== null && crop    !== undefined && crop    >= 0) rows.push({ name: "Crop Damage",           value: crop,    status: severityLabel(crop)    });
+    if (vehicle !== null && vehicle !== undefined && vehicle >= 0) rows.push({ name: "Vehicle Damage",        value: vehicle, status: severityLabel(vehicle) });
+  } else if (type.includes("landslide")) {
+    if (house   !== null && house   !== undefined && house   >= 0) rows.push({ name: "Structural Damage",    value: house,   status: severityLabel(house)   });
+    if (vehicle !== null && vehicle !== undefined && vehicle >= 0) rows.push({ name: "Vehicle Damage",        value: vehicle, status: severityLabel(vehicle) });
+  } else if (type.includes("rain") || type.includes("heavy")) {
+    if (house   !== null && house   !== undefined && house   >= 0) rows.push({ name: "Property Damage",      value: house,   status: severityLabel(house)   });
+    if (crop    !== null && crop    !== undefined && crop    >= 0) rows.push({ name: "Crop Damage",           value: crop,    status: severityLabel(crop)    });
+    if (vehicle !== null && vehicle !== undefined && vehicle >= 0) rows.push({ name: "Vehicle Damage",        value: vehicle, status: severityLabel(vehicle) });
+  } else {
+    // Flood (default)
+    if (house   !== null && house   !== undefined && house   >= 0) rows.push({ name: "House Damage",         value: house,   status: severityLabel(house)   });
+    if (crop    !== null && crop    !== undefined && crop    >= 0) rows.push({ name: "Crop Damage",           value: crop,    status: severityLabel(crop)    });
+    if (vehicle !== null && vehicle !== undefined && vehicle >= 0) rows.push({ name: "Vehicle Damage",        value: vehicle, status: severityLabel(vehicle) });
+  }
+
+  return rows;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function Step4DamageReport({
   data = {},
+  disasterType = "flood",
   images = [],
   onNext,
 }) {
   const [activeImage, setActiveImage] = useState(null);
-  const metrics = [
-  {
-    name: "House Damage",
-    value: `${data.house_damage ?? 0}%`,
-    status: data.house_damage >= 70 ? "Severe" : "Normal",
-  },
-  {
-    name: "Crop Damage",
-    value: `${data.crop_damage ?? 0}%`,
-    status: data.crop_damage >= 70 ? "Severe" : "Normal",
-  },
-  {
-    name: "Vehicle Damage",
-    value: `${data.vehicle_damage ?? 0}%`,
-    status: data.vehicle_damage >= 70 ? "Severe" : "Normal",
-  },
-  {
-    name: "Severity",
-    value: data.severity,
-    status: data.severity,
-  },
-];
+
+  const isFallback = data.is_fallback === true;
+  const metrics    = buildMetrics(disasterType, data);
+
+  const overallPct  = data.damage_percent;
+  const overallSev  = data.severity || (typeof overallPct === "number" && overallPct >= 70 ? "Severe" : null);
+  const confidence  = data.ai_confidence;
+  const estimLoss   = data.estimated_loss;
+  const evidenceSummary = data.evidence_summary || "";
+  const observations    = data.observations    || [];
+  const limitations     = data.limitations     || [];
 
   return (
     <div className="space-y-6">
-      {/* Title */}
-      <div className="flex items-center justify-between">
+
+      {/* ── Title row ── */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider font-poppins">AI Damage Assessment Report</h3>
-          <p className="text-xs text-[#A5A8B5] font-inter">Verified metrics inferred from geographic logs, depth layers, and image feeds</p>
+          <h3 className="text-sm font-bold text-white uppercase tracking-wider font-poppins">
+            AI Damage Assessment Report
+          </h3>
+          <p className="text-xs text-[#A5A8B5] font-inter capitalize">
+            Based on validated <span className="text-white font-semibold">{disasterType}</span> evidence
+          </p>
         </div>
         <div className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-[#F4C95D]/20 bg-[#F4C95D]/5 text-[#F4C95D] text-xs font-semibold">
           <Cpu className="w-3.5 h-3.5" />
-          <span className="font-space-grotesk">{data.ai_confidence ?? 0}% Model Confidence</span>
+          <span className="font-space-grotesk">
+            {isFallback
+              ? "Fallback Mode — AI unavailable"
+              : confidence !== null && confidence !== undefined
+              ? `${confidence}% AI Confidence`
+              : "AI Analysis"}
+          </span>
         </div>
       </div>
 
-      {/* Grid of Premium Cards */}
+      {/* ── Fallback warning ── */}
+      {isFallback && (
+        <div className="flex items-start gap-3 p-3.5 rounded-[16px] bg-[#F59E0B]/8 border border-[#F59E0B]/20 text-[#F59E0B] text-xs font-inter">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold mb-0.5">Estimated values — AI service unavailable</p>
+            <p className="text-[10px] opacity-80 leading-relaxed">
+              Real-time AI analysis could not be completed. The values below are conservative
+              estimates for the selected disaster type. A field officer will conduct an
+              on-site verification before any relief is disbursed.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Evidence summary ── */}
+      {evidenceSummary && !isFallback && (
+        <div className="flex items-start gap-3 p-3.5 rounded-[16px] bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] text-xs font-inter">
+          <Info className="w-4 h-4 text-[#F4C95D] shrink-0 mt-0.5" />
+          <p className="text-[#A5A8B5] leading-relaxed italic">"{evidenceSummary}"</p>
+        </div>
+      )}
+
+      {/* ── Damage metric cards ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {metrics.map((item, idx) => {
-
+          const lowerName = item.name.toLowerCase();
           let Icon = Landmark;
-          if (item.name.includes("Water")) Icon = CloudRain;
-          else if (item.name.includes("Electricity")) Icon = Zap;
-          else if (item.name.includes("Roof")) Icon = Landmark;
-          
+          if (lowerName.includes("water") || lowerName.includes("crop") || lowerName.includes("rain")) Icon = CloudRain;
+          else if (lowerName.includes("burn") || lowerName.includes("vehicle") || lowerName.includes("electric")) Icon = Zap;
+
           return (
             <div
               key={idx}
@@ -77,15 +188,9 @@ export default function Step4DamageReport({
               </div>
               <div className="flex items-baseline justify-between mt-4">
                 <span className="text-xl font-bold text-white font-space-grotesk">
-                  {item.value}
+                  {fmtPct(item.value)}
                 </span>
-                <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider font-poppins ${
-                  item.status === 'Severe' || item.status === 'Danger'
-                    ? "bg-[#EF4444]/10 text-[#EF4444]" 
-                    : item.status === 'Warning' || item.status === 'Critical'
-                    ? "bg-[#F59E0B]/10 text-[#F59E0B]"
-                    : "bg-[#22C55E]/10 text-[#22C55E]"
-                }`}>
+                <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider font-poppins ${severityColor(item.value)}`}>
                   {item.status}
                 </span>
               </div>
@@ -93,7 +198,7 @@ export default function Step4DamageReport({
           );
         })}
 
-        {/* Financial Loss Card */}
+        {/* Financial Loss card */}
         <div className="p-5 rounded-[20px] bg-[#11131A] border border-[rgba(255,255,255,0.08)] flex flex-col justify-between hover:border-[rgba(255,255,255,0.15)] transition-all duration-300 min-h-[110px]">
           <div className="flex items-center justify-between">
             <span className="text-[9px] text-[#A5A8B5] font-bold uppercase tracking-wider font-poppins">
@@ -102,16 +207,16 @@ export default function Step4DamageReport({
             <DollarSign className="w-3.5 h-3.5 text-[#F4C95D]" />
           </div>
           <div className="mt-4">
-            <span className="text-xl font-bold text-[#F4C95D] font-space-grotesk">
-            ₹{(data.estimated_loss ?? 0).toLocaleString("en-IN")}
+            <span className={`text-xl font-bold font-space-grotesk ${estimLoss > 0 ? "text-[#F4C95D]" : "text-[#A5A8B5]"}`}>
+              {fmtLoss(estimLoss)}
             </span>
             <span className="text-[8px] text-[#A5A8B5] block mt-1 uppercase tracking-wider">
-              Asset Value Checked
+              {estimLoss > 0 ? "AI Estimate" : "Insufficient data"}
             </span>
           </div>
         </div>
 
-        {/* Overall Damage Card */}
+        {/* Overall severity card */}
         <div className="p-5 rounded-[20px] bg-[#11131A] border border-[rgba(255,255,255,0.08)] flex flex-col justify-between hover:border-[rgba(255,255,255,0.15)] transition-all duration-300 min-h-[110px]">
           <div className="flex items-center justify-between">
             <span className="text-[9px] text-[#A5A8B5] font-bold uppercase tracking-wider font-poppins">
@@ -121,44 +226,92 @@ export default function Step4DamageReport({
           </div>
           <div className="flex items-baseline justify-between mt-4">
             <span className="text-xl font-bold text-white font-space-grotesk">
-              {data.damage_percent ?? 0}%
+              {fmtPct(overallPct)}
             </span>
-            <span className="text-[8px] text-[#EF4444] font-bold bg-[#EF4444]/10 px-2 py-0.5 rounded-full uppercase tracking-wider font-poppins">
-              Severe
-            </span>
+            {overallSev && (
+              <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider font-poppins ${severityColor(overallPct)}`}>
+                {overallSev}
+              </span>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Image Gallery Grid */}
-      <div className="space-y-3">
-        <h4 className="text-[10px] font-bold text-[#A5A8B5] uppercase tracking-wider font-poppins">
-          Vision Model Detections
-        </h4>
-        <div className="grid grid-cols-3 gap-4">
-          {(images || []).map((img) => (
-            <div
-              key={img.id}
-              onClick={() => setActiveImage(img)}
-              className="aspect-video bg-[#11131A] rounded-[20px] overflow-hidden border border-[rgba(255,255,255,0.08)] relative cursor-pointer group hover:border-[#F4C95D]/50 transition-all duration-300"
-            >
-              <img src={img.url} alt={img.label} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-              <div className="absolute inset-0 bg-[#0B0B12]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <Eye className="w-6 h-6 text-white" />
-              </div>
-              <span className="absolute bottom-2 left-2 bg-[#11131A]/85 backdrop-blur-sm border border-[rgba(255,255,255,0.05)] px-2 py-0.5 rounded-[8px] text-[8px] font-bold text-white">
-                {(img.detections || []).length} AI markers
-              </span>
-            </div>
-          ))}
+      {/* ── No metrics detected warning ── */}
+      {metrics.length === 0 && !isFallback && (
+        <div className="flex items-start gap-3 p-3.5 rounded-[16px] bg-[#F59E0B]/8 border border-[#F59E0B]/20 text-[#F59E0B] text-xs font-inter">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <p className="leading-relaxed">
+            AI could not detect specific damage categories from the uploaded evidence.
+            Overall severity and loss estimate are shown. A field officer will conduct an on-site assessment.
+          </p>
         </div>
-      </div>
+      )}
 
-      {/* Image Overlay Modal */}
+      {/* ── Observations ── */}
+      {observations.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="text-[10px] font-bold text-[#A5A8B5] uppercase tracking-wider font-poppins">
+            Key Observations
+          </h4>
+          <ul className="space-y-1.5">
+            {observations.map((obs, i) => (
+              <li key={i} className="flex items-start gap-2 text-xs text-[#A5A8B5] font-inter">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F4C95D] shrink-0 mt-1.5" />
+                {obs}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* ── Limitations ── */}
+      {limitations.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="text-[10px] font-bold text-[#A5A8B5] uppercase tracking-wider font-poppins">
+            Assessment Limitations
+          </h4>
+          <ul className="space-y-1.5">
+            {limitations.map((lim, i) => (
+              <li key={i} className="flex items-start gap-2 text-[10px] text-[#A5A8B5]/70 font-inter italic">
+                <AlertCircle className="w-3 h-3 shrink-0 mt-0.5 text-[#F59E0B]/60" />
+                {lim}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* ── Image gallery (only if images prop is populated) ── */}
+      {images.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="text-[10px] font-bold text-[#A5A8B5] uppercase tracking-wider font-poppins">
+            Vision Model Detections
+          </h4>
+          <div className="grid grid-cols-3 gap-4">
+            {images.map((img) => (
+              <div
+                key={img.id}
+                onClick={() => setActiveImage(img)}
+                className="aspect-video bg-[#11131A] rounded-[20px] overflow-hidden border border-[rgba(255,255,255,0.08)] relative cursor-pointer group hover:border-[#F4C95D]/50 transition-all duration-300"
+              >
+                <img src={img.url} alt={img.label} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                <div className="absolute inset-0 bg-[#0B0B12]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Eye className="w-6 h-6 text-white" />
+                </div>
+                <span className="absolute bottom-2 left-2 bg-[#11131A]/85 backdrop-blur-sm border border-[rgba(255,255,255,0.05)] px-2 py-0.5 rounded-[8px] text-[8px] font-bold text-white">
+                  {(img.detections || []).length} AI markers
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Image modal ── */}
       <AnimatePresence>
         {activeImage && (
           <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -166,8 +319,6 @@ export default function Step4DamageReport({
               onClick={() => setActiveImage(null)}
               className="absolute inset-0 bg-[#0B0B12]/80 backdrop-blur-sm"
             />
-
-            {/* Modal Body */}
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -176,39 +327,24 @@ export default function Step4DamageReport({
             >
               <div className="relative aspect-video w-full">
                 <img src={activeImage.url} alt={activeImage.label} className="w-full h-full object-cover" />
-                
-                {/* Bounding box overlays */}
-                {(activeImage?.detections || []).map((det) => {
+                {(activeImage.detections || []).map((det) => {
                   const isHigh = det.severity === "Severe" || det.severity === "High";
                   return (
                     <div
                       key={det.id}
-                      style={{
-                        position: "absolute",
-                        left: det.x,
-                        top: det.y,
-                        width: det.w,
-                        height: det.h
-                      }}
-                      className={`border-2 rounded-[8px] ${
-                        isHigh ? "border-[#EF4444] bg-[#EF4444]/10" : "border-[#F59E0B] bg-[#F59E0B]/10"
-                      }`}
+                      style={{ position: "absolute", left: det.x, top: det.y, width: det.w, height: det.h }}
+                      className={`border-2 rounded-[8px] ${isHigh ? "border-[#EF4444] bg-[#EF4444]/10" : "border-[#F59E0B] bg-[#F59E0B]/10"}`}
                     >
-                      <span className={`absolute -top-6 left-0 px-2 py-0.5 rounded-[6px] text-[8px] font-bold text-white uppercase tracking-wider ${
-                        isHigh ? "bg-[#EF4444]" : "bg-[#F59E0B]"
-                      }`}>
+                      <span className={`absolute -top-6 left-0 px-2 py-0.5 rounded-[6px] text-[8px] font-bold text-white uppercase tracking-wider ${isHigh ? "bg-[#EF4444]" : "bg-[#F59E0B]"}`}>
                         {det.label} ({det.confidence}%)
                       </span>
                     </div>
                   );
                 })}
               </div>
-
-              {/* Description & Footer */}
               <div className="p-4 flex items-center justify-between border-t border-[rgba(255,255,255,0.08)]">
                 <div>
                   <h4 className="text-xs font-bold text-white font-poppins">{activeImage.label}</h4>
-                  <p className="text-[10px] text-[#A5A8B5] font-inter mt-1">Geotag verification: Bihar Area Municipality Zone 14</p>
                 </div>
                 <button
                   onClick={() => setActiveImage(null)}
@@ -222,7 +358,7 @@ export default function Step4DamageReport({
         )}
       </AnimatePresence>
 
-      {/* Step Navigation */}
+      {/* ── Navigation ── */}
       <div className="flex justify-end pt-4 border-t border-[rgba(255,255,255,0.05)]">
         <button
           onClick={onNext}
@@ -232,6 +368,7 @@ export default function Step4DamageReport({
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
+
     </div>
   );
 }

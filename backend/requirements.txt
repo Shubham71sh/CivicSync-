@@ -33,14 +33,10 @@ passlib[bcrypt]>=1.7.4
 bcrypt>=4.0.0
 python-jose[cryptography]>=3.3.0
 
-# ── Vector Embeddings (BGE-M3) ────────────────────────────────────────────────
+# ── Vector Embeddings & RAG (MiniLM + BGE-M3) ─────────────────────────────────
 sentence-transformers>=2.7.0
 FlagEmbedding>=1.2.0
-
-# ── Vector Database (FAISS) ───────────────────────────────────────────────────
 faiss-cpu>=1.7.4
-
-# ── Numerical Computing ───────────────────────────────────────────────────────
 numpy>=1.26.0
 
 # ── Testing ───────────────────────────────────────────────────────────────────
