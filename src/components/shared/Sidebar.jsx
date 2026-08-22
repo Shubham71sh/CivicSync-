@@ -80,11 +80,15 @@ function NavItem({ item, isActive, onClick }) {
   );
 }
 
-export default function Sidebar() {
+export default function Sidebar({ mobileOpen: controlledMobileOpen, setMobileOpen: controlledSetMobileOpen, isDrawerOnly = false }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [internalMobileOpen, setInternalMobileOpen] = useState(false);
+
+  const isControlled = controlledMobileOpen !== undefined;
+  const mobileOpen = isControlled ? controlledMobileOpen : internalMobileOpen;
+  const setMobileOpen = isControlled ? controlledSetMobileOpen : setInternalMobileOpen;
 
   const handleLogout = async () => {
     await logout();
@@ -175,6 +179,10 @@ export default function Sidebar() {
       </div>
     </div>
   );
+
+  if (isDrawerOnly) {
+    return sidebarContent;
+  }
 
   return (
     <>
