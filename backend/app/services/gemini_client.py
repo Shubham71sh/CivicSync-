@@ -4,9 +4,18 @@ Model: llama-3.3-70b-versatile (fast, free tier)
 """
 import os
 import httpx
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Explicitly load backend/.env regardless of working directory
+# gemini_client.py is at: backend/app/services/gemini_client.py
+# parents[0] = backend/app/services
+# parents[1] = backend/app
+# parents[2] = backend   <-- .env lives here
+_this_file = Path(__file__).resolve()
+_env_path = _this_file.parents[2] / ".env"
+load_dotenv(dotenv_path=_env_path, override=False)
+print(f"[gemini_client] Loading .env from: {_env_path} (exists={_env_path.exists()})")
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL   = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
@@ -20,7 +29,7 @@ def call_gemini(prompt: str) -> str:
     (Function kept as call_gemini so no other files need changing.)
     """
     if not GROQ_API_KEY:
-        raise ValueError("GROQ_API_KEY is not set in .env")
+        raise ValueError(f"GROQ_API_KEY is not set. Tried loading from: {_env_path}")
 
     headers = {
         "Content-Type": "application/json",
