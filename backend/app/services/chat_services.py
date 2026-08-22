@@ -1,14 +1,18 @@
 import traceback
 import asyncio
-
+from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 
 from app.services.memory_service import MemoryService
 from app.services.profile_service import ProfileService
 from app.services.prompt_builder import PromptBuilder
-from app.services.rag_service import RAGService
 from app.services.question_router import QuestionRouter
-from app.services.gemini_client import call_gemini
+
+# Import RAG integrations
+from app.ai.orchestrator import orchestrator
+from app.ai.retrieval.retrieval_service import get_retrieval_service
+from app.ai.rag.context_builder import ContextBuilder
+from app.ai.rag.citation_service import CitationService
 
 load_dotenv()
 
@@ -27,20 +31,14 @@ Rules:
 
 Title:"""
     try:
-        title = call_gemini(prompt).strip().strip('"').strip("'")
+        title = orchestrator.generate(prompt).strip().strip('"').strip("'")
         return title[:60] if title else question[:40]
     except Exception:
         return question[:40]
 
 
-def _build_prompt(question: str, language: str, profile=None, history=None, documents=None) -> str:
-    """Build the best prompt based on what context is available."""
-
-    # If we have documents from RAG — use structured prompt
-    if documents:
-        return PromptBuilder.build(profile, history, documents, question, language)
-
-    # No documents — answer from AI knowledge directly
+def _build_prompt(question: str, language: str, profile=None, history=None) -> str:
+    """Build a general knowledge prompt when no document context is found/used."""
     return f"""You are CivicSync AI, a knowledgeable assistant for Indian citizens.
 
 Answer the following question fully and accurately.
@@ -64,7 +62,7 @@ class ChatService:
         self.db = db
         self.memory = MemoryService(db)
         self.profile = ProfileService(db)
-        self.rag = RAGService(db)
+        self.retrieval_service = get_retrieval_service()
 
     async def chat(
         self,
@@ -99,8 +97,9 @@ class ChatService:
         question_type = router.classify(question)
         print("STEP 4: question type =", question_type)
 
-        documents = []
+        chunks = []
         sources = []
+        confidence = 1.0
 
         # ----------------------------------
         # Try RAG for government questions
@@ -115,33 +114,58 @@ class ChatService:
             "profile",
         ]:
             print("STEP 5: searching RAG")
-            documents = await self.rag.search_documents(
-                question, profile=profile, user_id=user_id
-            )
-            print("STEP 6: RAG returned", len(documents), "documents")
-            if documents:
-                sources = await self.rag.get_sources(documents)
+            try:
+                # We retrieve chunks using the retrieval pipeline
+                retrieval_result = await self.retrieval_service.retrieve(
+                    query=question,
+                    filters=None  # No global metadata filter for general chat
+                )
+                chunks = retrieval_result.chunks
+                confidence = retrieval_result.confidence
+                print(f"STEP 6: RAG returned {len(chunks)} chunks, confidence {confidence}")
+                
+                if chunks:
+                    sources = CitationService.format_sources_as_strings(chunks)
+            except Exception as e:
+                print(f"RAG search failed: {e}")
+                traceback.print_exc()
 
         # ----------------------------------
         # Build prompt (with or without docs)
         # ----------------------------------
-        prompt = _build_prompt(question, language, profile, history, documents)
+        if chunks:
+            prompt = ContextBuilder.build(
+                question=question,
+                chunks=chunks,
+                profile=profile,
+                history=history,
+                language=language
+            )
+        else:
+            prompt = _build_prompt(question, language, profile, history)
 
         # ----------------------------------
         # Call AI + generate title in parallel
         # ----------------------------------
         print("STEP 7: calling AI")
         try:
+            loop = asyncio.get_event_loop()
+            
+            # Helper function to generate chat response synchronously via executor
+            def _run_ai():
+                system_msg = "You are CivicSync AI, a helpful civic assistant. Rely strictly on retrieved facts." if chunks else None
+                return orchestrator.generate(prompt, system=system_msg)
+
             if is_new_conversation:
                 answer = await asyncio.wait_for(
-                    asyncio.to_thread(call_gemini, prompt),
+                    loop.run_in_executor(None, _run_ai),
                     timeout=60,
                 )
                 answer = (answer or "").strip()
 
                 try:
                     smart_title = await asyncio.wait_for(
-                        asyncio.to_thread(_generate_title, question),
+                        loop.run_in_executor(None, _generate_title, question),
                         timeout=10,
                     )
                 except Exception:
@@ -151,7 +175,7 @@ class ChatService:
                 print(f"STEP 8: title set to '{smart_title}'")
             else:
                 answer = await asyncio.wait_for(
-                    asyncio.to_thread(call_gemini, prompt),
+                    loop.run_in_executor(None, _run_ai),
                     timeout=60,
                 )
                 answer = (answer or "").strip()
@@ -181,4 +205,5 @@ class ChatService:
             "conversation_id": conversation_id,
             "response": answer,
             "sources": sources,
+            "confidence": confidence
         }
