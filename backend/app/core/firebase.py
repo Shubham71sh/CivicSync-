@@ -16,13 +16,15 @@ _db = None
 
 
 def _find_service_account_key() -> str:
-    """Locate the service account key JSON file in the backend folder or env vars."""
+    """Locate the service account key JSON file in the backend folder, Render secrets, or env vars."""
 
     backend_dir = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "..", "..")
     )
 
     candidates = [
+        "/etc/secrets/serviceAccountKey.json",
+        "/etc/secrets/firebase-key.json",
         os.path.join(backend_dir, "serviceAccountKey.json"),
         os.path.join(
             backend_dir,
@@ -30,13 +32,13 @@ def _find_service_account_key() -> str:
         ),
     ]
 
-    # Environment variables
+    # Environment variables pointing to key files
     for env_var in [
         "FIREBASE_SERVICE_ACCOUNT_KEY",
         "GOOGLE_APPLICATION_CREDENTIALS",
     ]:
         value = os.environ.get(env_var)
-        if value:
+        if value and not value.strip().startswith("{"):
             candidates.insert(0, os.path.abspath(value))
 
     # Search backend folder
@@ -69,9 +71,8 @@ def _find_service_account_key() -> str:
 
     raise FileNotFoundError(
         "No valid Firebase service account JSON key found. "
-        "Expected serviceAccountKey.json or "
-        "civic-sync-cosmic-firebase-adminsdk-fbsvc-ddcee060c2.json "
-        "inside backend/."
+        "Please set the FIREBASE_SERVICE_ACCOUNT_JSON environment variable with your service account JSON string, "
+        "or upload serviceAccountKey.json as a Secret File in Render."
     )
 
 
@@ -87,23 +88,36 @@ def _init_firebase():
         logger.info("Using existing Firebase Admin app.")
     else:
         try:
-            sa_path = _find_service_account_key()
+            cred = None
 
-            logger.info(f"Loading Firebase key: {sa_path}")
+            # 1. Priority: Check environment variables containing raw JSON string
+            for env_var in [
+                "FIREBASE_SERVICE_ACCOUNT_JSON",
+                "FIREBASE_SERVICE_ACCOUNT_KEY",
+                "FIREBASE_CREDENTIALS",
+                "GOOGLE_APPLICATION_CREDENTIALS_JSON",
+            ]:
+                raw_json = os.environ.get(env_var, "").strip()
+                if raw_json and raw_json.startswith("{"):
+                    try:
+                        data = json.loads(raw_json)
+                        if isinstance(data, dict) and ("private_key" in data or data.get("type") == "service_account"):
+                            if "private_key" in data and isinstance(data["private_key"], str):
+                                # Fix escaped newlines in private key if present from environment variable input
+                                data["private_key"] = data["private_key"].replace("\\n", "\n")
+                            cred = credentials.Certificate(data)
+                            logger.info(f"✅ Firebase initialized from raw JSON string in env var '{env_var}'.")
+                            break
+                    except Exception as err:
+                        logger.warning(f"Could not parse JSON string from env var '{env_var}': {err}")
 
-            cred = credentials.Certificate(sa_path)
+            # 2. Second priority: Find JSON file on disk (local or Render Secret File)
+            if cred is None:
+                sa_path = _find_service_account_key()
+                logger.info(f"Loading Firebase key from file path: {sa_path}")
+                cred = credentials.Certificate(sa_path)
 
-            project_id = "civic-sync-cosmic"
-
-            try:
-                with open(sa_path, "r", encoding="utf-8") as f:
-                    service_account = json.load(f)
-
-                if service_account.get("project_id"):
-                    project_id = service_account["project_id"]
-
-            except Exception:
-                pass
+            project_id = os.environ.get("FIREBASE_PROJECT_ID", "civic-sync-cosmic")
 
             _firebase_app = firebase_admin.initialize_app(
                 cred,
@@ -124,7 +138,7 @@ def _init_firebase():
             _db = None
             raise
 
-    options = {"projectId": "civic-sync-cosmic"}
+    options = {"projectId": os.environ.get("FIREBASE_PROJECT_ID", "civic-sync-cosmic")}
     bucket_env = os.environ.get("FIREBASE_STORAGE_BUCKET")
     if bucket_env:
         options["storageBucket"] = bucket_env
@@ -162,4 +176,4 @@ def get_db():
             "Firestore client is not initialized."
         )
 
-    return _db
+    return _db

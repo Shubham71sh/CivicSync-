@@ -27,31 +27,47 @@ import logging
 import numpy as np
 from typing import Any, Dict, List, Optional, Tuple
 
-import faiss
-from sentence_transformers import SentenceTransformer
+try:
+    import faiss
+    HAS_FAISS = True
+except ImportError:
+    faiss = None
+    HAS_FAISS = False
+
+try:
+    from sentence_transformers import SentenceTransformer
+    HAS_SENTENCE_TRANSFORMERS = True
+except ImportError:
+    SentenceTransformer = None
+    HAS_SENTENCE_TRANSFORMERS = False
 
 from app.config.database import get_col
 
 logger = logging.getLogger("uvicorn.error")
 
 # ── MiniLM model — loaded once at module level ────────────────────────────────
-# all-MiniLM-L6-v2: 22M params, 384-dim, ~80ms to encode 100 sentences on CPU
 _MODEL_NAME = "all-MiniLM-L6-v2"
-_encoder: Optional[SentenceTransformer] = None
+_encoder: Any = None
 
 
-def _get_encoder() -> SentenceTransformer:
+def _get_encoder():
     global _encoder
+    if not HAS_SENTENCE_TRANSFORMERS:
+        return None
     if _encoder is None:
-        logger.info(f"Loading MiniLM model: {_MODEL_NAME} ...")
-        _encoder = SentenceTransformer(_MODEL_NAME)
-        logger.info("MiniLM model loaded.")
+        try:
+            logger.info(f"Loading MiniLM model: {_MODEL_NAME} ...")
+            _encoder = SentenceTransformer(_MODEL_NAME)
+            logger.info("MiniLM model loaded.")
+        except Exception as exc:
+            logger.warning(f"Failed to load MiniLM model ({exc}).")
+            _encoder = None
     return _encoder
 
 
 # ── Module-level FAISS index cache ────────────────────────────────────────────
-# Tuple of (timestamp, faiss_index, doc_list)
-_INDEX_CACHE: Tuple[float, Optional[faiss.Index], List[dict]] = (0.0, None, [])
+# Tuple of (timestamp, faiss_index_or_numpy_matrix, doc_list)
+_INDEX_CACHE: Tuple[float, Any, List[dict]] = (0.0, None, [])
 _CACHE_TTL_SECONDS = 300  # rebuild index every 5 minutes
 
 
@@ -60,6 +76,7 @@ def invalidate_index():
     global _INDEX_CACHE
     _INDEX_CACHE = (0.0, None, [])
     logger.info("FAISS index cache invalidated.")
+
 
 
 # ── Document text extraction (same fields as before) ─────────────────────────
@@ -110,33 +127,43 @@ def _document_to_text(doc: Dict[str, Any]) -> str:
 
 # ── FAISS index builder ───────────────────────────────────────────────────────
 
-def _build_index(docs: List[dict]) -> faiss.Index:
+def _build_index(docs: List[dict]):
     """
     Encode all document texts with MiniLM and build a FAISS cosine index.
     Uses IndexFlatIP (inner product) after L2-normalising vectors → cosine similarity.
     """
     encoder = _get_encoder()
-    texts = [_document_to_text(doc) for doc in docs]
+    if encoder is None or not HAS_FAISS or faiss is None:
+        logger.warning("FAISS or SentenceTransformer not available. Skipping vector index build.")
+        return None
 
-    # Encode in one batch — sentence-transformers handles batching internally
-    embeddings = encoder.encode(
-        texts,
-        batch_size=64,
-        show_progress_bar=False,
-        convert_to_numpy=True,
-        normalize_embeddings=True,   # L2 norm → inner product = cosine similarity
-    )
+    try:
+        texts = [_document_to_text(doc) for doc in docs]
+        if not texts:
+            return None
 
-    dim = embeddings.shape[1]  # 384 for MiniLM
-    index = faiss.IndexFlatIP(dim)
-    index.add(embeddings.astype(np.float32))
-    logger.info(f"FAISS index built: {index.ntotal} vectors, dim={dim}")
-    return index
+        # Encode in one batch — sentence-transformers handles batching internally
+        embeddings = encoder.encode(
+            texts,
+            batch_size=64,
+            show_progress_bar=False,
+            convert_to_numpy=True,
+            normalize_embeddings=True,   # L2 norm → inner product = cosine similarity
+        )
+
+        dim = embeddings.shape[1]  # 384 for MiniLM
+        index = faiss.IndexFlatIP(dim)
+        index.add(embeddings.astype(np.float32))
+        logger.info(f"FAISS index built: {index.ntotal} vectors, dim={dim}")
+        return index
+    except Exception as exc:
+        logger.warning(f"Failed to build FAISS index: {exc}")
+        return None
 
 
 # ── Main async API ────────────────────────────────────────────────────────────
 
-async def get_index() -> Tuple[faiss.Index, List[dict]]:
+async def get_index() -> Tuple[Any, List[dict]]:
     """
     Return (faiss_index, docs_list) from cache, rebuilding if TTL has expired.
     Thread-safe: Firestore fetch + encoding runs in executor so the event loop
@@ -152,22 +179,26 @@ async def get_index() -> Tuple[faiss.Index, List[dict]]:
     loop = asyncio.get_event_loop()
 
     def _fetch_and_build():
-        # 1. Fetch from Firestore
-        gov_docs = list(get_col("government_documents").limit(200).stream())
-        bills    = list(get_col("bills").limit(200).stream())
-        schemes  = list(get_col("schemes").limit(200).stream())
-        raw      = gov_docs + bills + schemes
+        try:
+            # 1. Fetch from Firestore
+            gov_docs = list(get_col("government_documents").limit(200).stream())
+            bills    = list(get_col("bills").limit(200).stream())
+            schemes  = list(get_col("schemes").limit(200).stream())
+            raw      = gov_docs + bills + schemes
 
-        # 2. Convert snapshots to dicts
-        all_docs = []
-        for snap in raw:
-            d = snap.to_dict() or {}
-            d["id"] = snap.id
-            all_docs.append(d)
+            # 2. Convert snapshots to dicts
+            all_docs = []
+            for snap in raw:
+                d = snap.to_dict() or {}
+                d["id"] = snap.id
+                all_docs.append(d)
 
-        # 3. Build FAISS index
-        faiss_index = _build_index(all_docs)
-        return faiss_index, all_docs
+            # 3. Build FAISS index
+            faiss_index = _build_index(all_docs)
+            return faiss_index, all_docs
+        except Exception as exc:
+            logger.warning(f"Error in _fetch_and_build: {exc}")
+            return None, []
 
     new_index, new_docs = await loop.run_in_executor(None, _fetch_and_build)
     _INDEX_CACHE = (time.monotonic(), new_index, new_docs)
@@ -191,8 +222,9 @@ async def search(
     encoder = _get_encoder()
     index, docs = await get_index()
 
-    if index.ntotal == 0:
+    if index is None or not hasattr(index, "ntotal") or index.ntotal == 0 or encoder is None:
         return []
+
 
     # ── Query text: combine question + key profile terms for personalised search
     profile_context = ""
